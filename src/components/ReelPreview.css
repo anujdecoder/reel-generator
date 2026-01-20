@@ -4,6 +4,18 @@
   padding: 24px;
 }
 
+.reel-preview.preview-only {
+  background: transparent;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.reel-preview.controls-only {
+  padding: 20px;
+}
+
 .preview-title {
   margin: 0 0 16px 0;
   font-size: 18px;
@@ -15,8 +27,16 @@
   border-radius: 8px;
   overflow: hidden;
   aspect-ratio: 9/16;
-  max-height: 400px;
+  max-height: 300px;
   margin: 0 auto 16px;
+}
+
+.preview-container.large {
+  max-height: 420px;
+  height: 420px;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  margin: 0;
 }
 
 .preview-placeholder {

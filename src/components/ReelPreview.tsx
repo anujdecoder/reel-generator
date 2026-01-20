@@ -6,12 +6,16 @@ interface ReelPreviewProps {
   images: ImageItem[];
   config: ReelConfig;
   onConfigChange: (config: ReelConfig) => void;
+  showPreviewOnly?: boolean;
+  showPreviewPlayer?: boolean;
 }
 
 export const ReelPreview: React.FC<ReelPreviewProps> = ({ 
   images, 
   config, 
-  onConfigChange 
+  onConfigChange,
+  showPreviewOnly = false,
+  showPreviewPlayer = true,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -155,13 +159,14 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
     // Collect all frames
     const frames: Blob[] = [];
     
-    // Load all images first
+    // Load all images first (use cropped version if available)
     const loadedImages: HTMLImageElement[] = await Promise.all(
       images.map((img) => {
         return new Promise<HTMLImageElement>((resolve) => {
           const image = new Image();
           image.onload = () => resolve(image);
-          image.src = img.dataUrl;
+          // Use cropped image if available, otherwise original
+          image.src = img.croppedDataUrl || img.dataUrl;
         });
       })
     );
@@ -285,6 +290,133 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
     setGenerationProgress(0);
   };
 
+  // If showing preview only (large preview on right side)
+  if (showPreviewOnly) {
+    return (
+      <div className="reel-preview preview-only">
+        <div className="preview-container large">
+          {images.length === 0 ? (
+            <div className="preview-placeholder">
+              <p>Add images to preview your reel</p>
+            </div>
+          ) : (
+            <div className="preview-frame">
+              <img
+                src={images[currentIndex]?.croppedDataUrl || images[currentIndex]?.dataUrl}
+                alt="Current frame"
+                className="preview-image"
+                style={getTransitionStyle()}
+              />
+              {/* Text Overlay */}
+              {images[currentIndex]?.textOverlay && (
+                <div 
+                  className="preview-text-overlay"
+                  style={getTextOverlayStyle(images[currentIndex].textOverlay)}
+                >
+                  {images[currentIndex].textOverlay.text}
+                </div>
+              )}
+              <div className="preview-counter">
+                {currentIndex + 1} / {images.length}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="preview-controls">
+          <button 
+            className="control-btn"
+            onClick={handlePlayPause}
+            disabled={images.length === 0}
+          >
+            {isPlaying ? '⏸ Pause' : '▶ Play'}
+          </button>
+          <button 
+            className="control-btn"
+            onClick={handleStop}
+            disabled={images.length === 0 || (!isPlaying && currentIndex === 0)}
+          >
+            ⏹ Stop
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // If hiding preview player (controls only mode)
+  if (!showPreviewPlayer) {
+    return (
+      <div className="reel-preview controls-only">
+        <div className="config-section">
+          <h4>⚙️ Settings</h4>
+          
+          <div className="config-item">
+            <label>Image Duration</label>
+            <input
+              type="range"
+              min="500"
+              max="5000"
+              step="100"
+              value={config.imageDuration}
+              onChange={(e) => onConfigChange({ ...config, imageDuration: Number(e.target.value) })}
+            />
+            <span>{(config.imageDuration / 1000).toFixed(1)}s</span>
+          </div>
+
+          <div className="config-item">
+            <label>Transition Duration</label>
+            <input
+              type="range"
+              min="200"
+              max="2000"
+              step="100"
+              value={config.transitionDuration}
+              onChange={(e) => onConfigChange({ ...config, transitionDuration: Number(e.target.value) })}
+            />
+            <span>{(config.transitionDuration / 1000).toFixed(1)}s</span>
+          </div>
+
+          <div className="config-item">
+            <label>Transition Type</label>
+            <select
+              value={config.transitionType}
+              onChange={(e) => onConfigChange({ ...config, transitionType: e.target.value as TransitionType })}
+            >
+              <option value="fade">Fade</option>
+              <option value="slide">Slide</option>
+              <option value="zoom">Zoom</option>
+              <option value="none">None</option>
+            </select>
+          </div>
+        </div>
+
+        <button 
+          className="generate-btn"
+          onClick={generateVideo}
+          disabled={images.length < 2 || isGenerating}
+        >
+          {isGenerating ? (
+            <>Generating... {generationProgress}%</>
+          ) : (
+            <>🎬 Generate Video</>
+          )}
+        </button>
+
+        {isGenerating && (
+          <div className="progress-bar">
+            <div 
+              className="progress-fill" 
+              style={{ width: `${generationProgress}%` }}
+            />
+          </div>
+        )}
+
+        <canvas ref={canvasRef} style={{ display: 'none' }} />
+      </div>
+    );
+  }
+
+  // Default: full preview with all controls
   return (
     <div className="reel-preview">
       <h3 className="preview-title">Preview & Generate</h3>
@@ -297,7 +429,7 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
         ) : (
           <div className="preview-frame">
             <img
-              src={images[currentIndex]?.dataUrl}
+              src={images[currentIndex]?.croppedDataUrl || images[currentIndex]?.dataUrl}
               alt="Current frame"
               className="preview-image"
               style={getTransitionStyle()}

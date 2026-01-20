@@ -7,9 +7,10 @@ interface ImageListProps {
   onRemove: (id: string) => void;
   onReorder: (images: ImageItem[]) => void;
   onEditText: (image: ImageItem) => void;
+  onEditCrop: (image: ImageItem) => void;
 }
 
-export const ImageList: React.FC<ImageListProps> = ({ images, onRemove, onReorder, onEditText }) => {
+export const ImageList: React.FC<ImageListProps> = ({ images, onRemove, onReorder, onEditText, onEditCrop }) => {
   const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null);
 
@@ -94,33 +95,60 @@ export const ImageList: React.FC<ImageListProps> = ({ images, onRemove, onReorde
             onDragEnd={handleDragEnd}
           >
             <div className="image-number">{index + 1}</div>
-            <img src={image.dataUrl} alt={image.name} className="image-thumbnail" />
+            <img 
+              src={image.croppedDataUrl || image.dataUrl} 
+              alt={image.name} 
+              className="image-thumbnail" 
+            />
             
-            {/* Text indicator */}
-            {image.textOverlay && (
-              <div className="text-indicator" title={image.textOverlay.text}>
-                T
-              </div>
-            )}
+            {/* Badges for crop and text */}
+            <div className="image-badges">
+              {image.cropSettings && (
+                <div className="crop-indicator" title="Cropped">
+                  ✂️
+                </div>
+              )}
+              {image.textOverlay && (
+                <div className="text-indicator" title={image.textOverlay.text}>
+                  T
+                </div>
+              )}
+            </div>
             
             <div className="drag-handle">
               <span>⋮⋮</span>
             </div>
             
-            {/* Add Text Button - always visible on hover */}
-            <button
-              className="add-text-btn"
-              onClick={(e) => { e.stopPropagation(); onEditText(image); }}
-              title={image.textOverlay ? 'Edit text' : 'Add text'}
-            >
-              {image.textOverlay ? '✏️' : '📝'}
-            </button>
+            {/* Quick action buttons */}
+            <div className="quick-actions">
+              <button
+                className="quick-action-btn"
+                onClick={(e) => { e.stopPropagation(); onEditCrop(image); }}
+                title={image.cropSettings ? 'Edit crop' : 'Crop image'}
+              >
+                ✂️
+              </button>
+              <button
+                className="quick-action-btn"
+                onClick={(e) => { e.stopPropagation(); onEditText(image); }}
+                title={image.textOverlay ? 'Edit text' : 'Add text'}
+              >
+                {image.textOverlay ? '✏️' : '📝'}
+              </button>
+            </div>
             
             <div className="image-overlay">
               <span className="image-name" title={image.name}>
                 {image.name}
               </span>
               <div className="image-actions">
+                <button
+                  className="action-btn crop-btn"
+                  onClick={(e) => { e.stopPropagation(); onEditCrop(image); }}
+                  title="Crop"
+                >
+                  ✂
+                </button>
                 <button
                   className="action-btn text-btn"
                   onClick={(e) => { e.stopPropagation(); onEditText(image); }}
@@ -156,7 +184,7 @@ export const ImageList: React.FC<ImageListProps> = ({ images, onRemove, onReorde
           </div>
         ))}
       </div>
-      <p className="drag-hint">💡 Drag to reorder • Click 📝 to add text overlay</p>
+      <p className="drag-hint">💡 Drag to reorder • ✂️ Crop • 📝 Add text</p>
     </div>
   );
 };

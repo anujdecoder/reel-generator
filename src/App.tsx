@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
-import { ImageUpload, ImageList, ReelPreview, TextOverlayEditor } from './components';
+import { ImageUpload, ImageList, ReelPreview, TextOverlayEditor, ImageCropEditor } from './components';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useImageStorage } from './hooks/useImageStorage';
-import type { ImageItem, ReelConfig, TextOverlay } from './types';
+import type { ImageItem, ReelConfig, TextOverlay, CropSettings } from './types';
 import './App.css';
 
 const DEFAULT_CONFIG: ReelConfig = {
@@ -18,6 +18,7 @@ function App() {
   const [config, setConfig] = useLocalStorage<ReelConfig>('reel-config', DEFAULT_CONFIG);
   const [showPreview, setShowPreview] = useState(false);
   const [editingImage, setEditingImage] = useState<ImageItem | null>(null);
+  const [croppingImage, setCroppingImage] = useState<ImageItem | null>(null);
 
   const handleImagesAdded = useCallback((newImages: ImageItem[]) => {
     setImages((prev) => [...prev, ...newImages]);
@@ -60,6 +61,22 @@ function App() {
 
   const handleCloseTextEditor = useCallback(() => {
     setEditingImage(null);
+  }, []);
+
+  const handleEditCrop = useCallback((image: ImageItem) => {
+    setCroppingImage(image);
+  }, []);
+
+  const handleSaveCrop = useCallback((imageId: string, cropSettings: CropSettings, croppedDataUrl: string) => {
+    setImages((prev) =>
+      prev.map((img) =>
+        img.id === imageId ? { ...img, cropSettings, croppedDataUrl } : img
+      )
+    );
+  }, [setImages]);
+
+  const handleCloseCropEditor = useCallback(() => {
+    setCroppingImage(null);
   }, []);
 
   return (
@@ -127,6 +144,7 @@ function App() {
                   onRemove={handleRemoveImage}
                   onReorder={handleReorderImages}
                   onEditText={handleEditText}
+                  onEditCrop={handleEditCrop}
                 />
 
                 {/* Prominent CTA to proceed */}
@@ -163,35 +181,82 @@ function App() {
             </button>
             
             <div className="preview-layout">
-              <div className="preview-panel">
+              {/* Left side: Image list and controls */}
+              <div className="preview-left">
+                <div className="images-summary">
+                  <h3>📋 Reorder Images ({images.length})</h3>
+                  <p className="summary-hint">Drag to reorder • This is the playback order</p>
+                  <div className="summary-list">
+                    {images.map((image, index) => (
+                      <div 
+                        key={image.id} 
+                        className="summary-item"
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('text/plain', index.toString());
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.classList.add('drag-over');
+                        }}
+                        onDragLeave={(e) => {
+                          e.currentTarget.classList.remove('drag-over');
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.classList.remove('drag-over');
+                          const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                          const toIndex = index;
+                          if (fromIndex !== toIndex) {
+                            const newImages = [...images];
+                            const [moved] = newImages.splice(fromIndex, 1);
+                            newImages.splice(toIndex, 0, moved);
+                            handleReorderImages(newImages);
+                          }
+                        }}
+                      >
+                        <span className="summary-number">{index + 1}</span>
+                        <div className="summary-image-wrapper">
+                          <img src={image.croppedDataUrl || image.dataUrl} alt={image.name} />
+                          {image.cropSettings && (
+                            <span className="summary-crop-badge" title="Cropped">✂</span>
+                          )}
+                          {image.textOverlay && (
+                            <span className="summary-text-badge" title={image.textOverlay.text}>T</span>
+                          )}
+                        </div>
+                        <div className="summary-info">
+                          <span className="summary-name">{image.name}</span>
+                          {image.textOverlay && (
+                            <span className="summary-text-preview">{image.textOverlay.text}</span>
+                          )}
+                        </div>
+                        <span className="drag-icon">⋮⋮</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Generate CTA */}
+                <div className="generate-section">
+                  <ReelPreview
+                    images={images}
+                    config={config}
+                    onConfigChange={setConfig}
+                    showPreviewPlayer={false}
+                  />
+                </div>
+              </div>
+              
+              {/* Right side: Large Preview */}
+              <div className="preview-right">
+                <h3>🎬 Preview</h3>
                 <ReelPreview
                   images={images}
                   config={config}
                   onConfigChange={setConfig}
+                  showPreviewOnly={true}
                 />
-              </div>
-              
-              <div className="images-summary">
-                <h3>📋 Image Order ({images.length})</h3>
-                <div className="summary-list">
-                  {images.map((image, index) => (
-                    <div key={image.id} className="summary-item">
-                      <span className="summary-number">{index + 1}</span>
-                      <div className="summary-image-wrapper">
-                        <img src={image.dataUrl} alt={image.name} />
-                        {image.textOverlay && (
-                          <span className="summary-text-badge" title={image.textOverlay.text}>T</span>
-                        )}
-                      </div>
-                      <div className="summary-info">
-                        <span className="summary-name">{image.name}</span>
-                        {image.textOverlay && (
-                          <span className="summary-text-preview">{image.textOverlay.text}</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
@@ -201,7 +266,7 @@ function App() {
       <footer className="app-footer">
         <p>
           {!showPreview 
-            ? 'Tip: Click 📝 on any image to add text overlay'
+            ? 'Tip: Click ✂️ to crop/resize • Click 📝 to add text overlay'
             : 'Tip: Adjust settings and preview before generating your final video'
           }
         </p>
@@ -213,6 +278,15 @@ function App() {
           image={editingImage}
           onSave={handleSaveTextOverlay}
           onClose={handleCloseTextEditor}
+        />
+      )}
+
+      {/* Crop Editor Modal */}
+      {croppingImage && (
+        <ImageCropEditor
+          image={croppingImage}
+          onSave={handleSaveCrop}
+          onClose={handleCloseCropEditor}
         />
       )}
     </div>
