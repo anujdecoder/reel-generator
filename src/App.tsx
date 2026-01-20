@@ -1,8 +1,8 @@
-import { useCallback, useState } from 'react';
-import { ImageUpload, ImageList, ReelPreview, TextOverlayEditor, ImageCropEditor } from './components';
+import { useCallback, useState, useRef, useMemo } from 'react';
+import { ImageUpload, ImageList, ReelPreview, TextOverlayEditor, ImageCropEditor, MusicUpload } from './components';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useImageStorage } from './hooks/useImageStorage';
-import type { ImageItem, ReelConfig, TextOverlay, CropSettings } from './types';
+import type { ImageItem, ReelConfig, TextOverlay, CropSettings, MusicTrack } from './types';
 import './App.css';
 
 const DEFAULT_CONFIG: ReelConfig = {
@@ -19,6 +19,14 @@ function App() {
   const [showPreview, setShowPreview] = useState(false);
   const [editingImage, setEditingImage] = useState<ImageItem | null>(null);
   const [croppingImage, setCroppingImage] = useState<ImageItem | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Calculate video duration based on images and config
+  const videoDuration = useMemo(() => {
+    if (images.length === 0) return 0;
+    const totalMs = images.length * (config.imageDuration + config.transitionDuration);
+    return totalMs / 1000; // Convert to seconds
+  }, [images.length, config.imageDuration, config.transitionDuration]);
 
   const handleImagesAdded = useCallback((newImages: ImageItem[]) => {
     setImages((prev) => [...prev, ...newImages]);
@@ -78,6 +86,26 @@ function App() {
   const handleCloseCropEditor = useCallback(() => {
     setCroppingImage(null);
   }, []);
+
+  const handleMusicChange = useCallback((music: MusicTrack | undefined) => {
+    setConfig((prev) => ({ ...prev, music }));
+    // Update audio element source
+    if (audioRef.current) {
+      if (music) {
+        audioRef.current.src = music.dataUrl;
+        audioRef.current.volume = music.volume;
+      } else {
+        audioRef.current.src = '';
+        audioRef.current.pause();
+      }
+    }
+  }, [setConfig]);
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   return (
     <div className="app">
@@ -237,6 +265,20 @@ function App() {
                   </div>
                 </div>
 
+                {/* Music Upload */}
+                <div className="music-section">
+                  <MusicUpload
+                    music={config.music}
+                    videoDuration={videoDuration}
+                    onMusicChange={handleMusicChange}
+                  />
+                  {config.music && (
+                    <div className="music-status">
+                      ✓ Music will play from {formatTime(config.music.startTime)} to {formatTime(config.music.endTime)}
+                    </div>
+                  )}
+                </div>
+
                 {/* Generate CTA */}
                 <div className="generate-section">
                   <ReelPreview
@@ -256,8 +298,12 @@ function App() {
                   config={config}
                   onConfigChange={setConfig}
                   showPreviewOnly={true}
+                  audioRef={audioRef}
                 />
               </div>
+
+              {/* Hidden audio element for music playback */}
+              <audio ref={audioRef} />
             </div>
           </div>
         ) : null}

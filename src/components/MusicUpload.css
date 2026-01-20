@@ -1,0 +1,141 @@
+.music-upload {
+  background: #2d3748;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.music-upload h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #e2e8f0;
+}
+
+.music-upload-area {
+  border: 2px dashed #4a5568;
+  border-radius: 8px;
+  padding: 24px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.music-upload-area:hover {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.music-icon {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.music-upload-area p {
+  margin: 0 0 4px 0;
+  color: #a0aec0;
+  font-size: 14px;
+}
+
+.music-hint {
+  font-size: 12px;
+  color: #718096;
+}
+
+.music-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.music-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #1a202c;
+  padding: 10px 12px;
+  border-radius: 6px;
+}
+
+.music-name {
+  font-size: 13px;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.remove-music-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #e53e3e;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.remove-music-btn:hover {
+  background: rgba(229, 62, 62, 0.2);
+}
+
+.music-duration-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #718096;
+  padding: 0 4px;
+}
+
+.music-trimmer,
+.music-volume {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.music-trimmer label,
+.music-volume label {
+  font-size: 12px;
+  color: #a0aec0;
+}
+
+.music-trimmer input[type="range"],
+.music-volume input[type="range"] {
+  width: 100%;
+  accent-color: #667eea;
+  height: 6px;
+}
+
+.music-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.preview-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #4a5568;
+  color: #e2e8f0;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.preview-btn:hover {
+  background: #667eea;
+}
+
+.current-time {
+  font-size: 12px;
+  color: #667eea;
+  font-family: monospace;
+}

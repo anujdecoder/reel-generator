@@ -8,6 +8,7 @@ interface ReelPreviewProps {
   onConfigChange: (config: ReelConfig) => void;
   showPreviewOnly?: boolean;
   showPreviewPlayer?: boolean;
+  audioRef?: React.RefObject<HTMLAudioElement | null>;
 }
 
 export const ReelPreview: React.FC<ReelPreviewProps> = ({ 
@@ -16,6 +17,7 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
   onConfigChange,
   showPreviewOnly = false,
   showPreviewPlayer = true,
+  audioRef,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -66,8 +68,18 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
     if (isPlaying) {
       setIsPlaying(false);
       clearTimeouts();
+      // Pause music
+      if (audioRef?.current) {
+        audioRef.current.pause();
+      }
     } else {
       setIsPlaying(true);
+      // Play music from start time
+      if (audioRef?.current && config.music) {
+        audioRef.current.currentTime = config.music.startTime;
+        audioRef.current.volume = config.music.volume;
+        audioRef.current.play().catch(console.error);
+      }
     }
   };
 
@@ -76,6 +88,11 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
     setCurrentIndex(0);
     setIsTransitioning(false);
     clearTimeouts();
+    // Stop and reset music
+    if (audioRef?.current && config.music) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = config.music.startTime;
+    }
   };
 
   const getTransitionStyle = (): React.CSSProperties => {
@@ -268,9 +285,16 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
       setGenerationProgress(Math.round((frame / totalFrames) * 100));
     }
 
-    // Create video using WebM
+    // Create video using WebM (with optional audio)
     try {
-      const videoBlob = await createWebMVideo(canvas, loadedImages, images, config, fps);
+      const videoBlob = await createWebMVideo(
+        canvas, 
+        loadedImages, 
+        images, 
+        config, 
+        fps,
+        setGenerationProgress
+      );
       
       // Download video
       const url = URL.createObjectURL(videoBlob);
@@ -659,24 +683,82 @@ async function createWebMVideo(
   loadedImages: HTMLImageElement[],
   imageItems: ImageItem[],
   config: ReelConfig,
-  fps: number
+  fps: number,
+  onProgress: (progress: number) => void
 ): Promise<Blob> {
   const ctx = canvas.getContext('2d')!;
   const frameDuration = 1000 / fps;
   const totalDuration = loadedImages.length * (config.imageDuration + config.transitionDuration);
   const totalFrames = Math.ceil(totalDuration / frameDuration);
 
-  // Check if MediaRecorder supports webm
-  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-    ? 'video/webm;codecs=vp9'
-    : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
-    ? 'video/webm;codecs=vp8'
-    : 'video/webm';
+  // Set up audio if available
+  let audioContext: AudioContext | null = null;
+  let audioDestination: MediaStreamAudioDestinationNode | null = null;
+  let audioSource: AudioBufferSourceNode | null = null;
 
-  const stream = canvas.captureStream(fps);
-  const mediaRecorder = new MediaRecorder(stream, {
+  if (config.music) {
+    try {
+      audioContext = new AudioContext();
+      audioDestination = audioContext.createMediaStreamDestination();
+      
+      // Load and decode audio
+      const response = await fetch(config.music.dataUrl);
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      
+      // Create source and connect to destination
+      audioSource = audioContext.createBufferSource();
+      audioSource.buffer = audioBuffer;
+      
+      // Create gain node for volume
+      const gainNode = audioContext.createGain();
+      gainNode.gain.value = config.music.volume;
+      
+      audioSource.connect(gainNode);
+      gainNode.connect(audioDestination);
+      
+      // Set the start offset
+      audioSource.start(0, config.music.startTime);
+    } catch (error) {
+      console.error('Error setting up audio:', error);
+      audioContext = null;
+    }
+  }
+
+  // Combine video and audio streams
+  const videoStream = canvas.captureStream(fps);
+  let combinedStream: MediaStream;
+  
+  if (audioDestination) {
+    const audioTracks = audioDestination.stream.getAudioTracks();
+    combinedStream = new MediaStream([
+      ...videoStream.getVideoTracks(),
+      ...audioTracks,
+    ]);
+  } else {
+    combinedStream = videoStream;
+  }
+
+  // Check if MediaRecorder supports webm with audio
+  let mimeType: string;
+  if (audioDestination) {
+    mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+      ? 'video/webm;codecs=vp9,opus'
+      : MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+      ? 'video/webm;codecs=vp8,opus'
+      : 'video/webm';
+  } else {
+    mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+      ? 'video/webm;codecs=vp9'
+      : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
+      ? 'video/webm;codecs=vp8'
+      : 'video/webm';
+  }
+
+  const mediaRecorder = new MediaRecorder(combinedStream, {
     mimeType,
     videoBitsPerSecond: 5000000,
+    audioBitsPerSecond: 128000,
   });
 
   const chunks: Blob[] = [];
@@ -688,6 +770,13 @@ async function createWebMVideo(
 
   return new Promise((resolve) => {
     mediaRecorder.onstop = () => {
+      // Clean up audio
+      if (audioSource) {
+        audioSource.stop();
+      }
+      if (audioContext) {
+        audioContext.close();
+      }
       resolve(new Blob(chunks, { type: 'video/webm' }));
     };
 
@@ -782,6 +871,9 @@ async function createWebMVideo(
             }
         }
       }
+
+      // Update progress
+      onProgress(Math.round((frame / totalFrames) * 100));
 
       frame++;
       requestAnimationFrame(renderFrame);

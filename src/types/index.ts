@@ -31,10 +31,21 @@ export interface ImageItem {
   cropSettings?: CropSettings;
 }
 
+export interface MusicTrack {
+  id: string;
+  name: string;
+  dataUrl: string;
+  duration: number; // Total duration in seconds
+  startTime: number; // Selected start time in seconds
+  endTime: number; // Selected end time in seconds
+  volume: number; // 0 to 1
+}
+
 export interface ReelConfig {
   transitionDuration: number; // Duration of transition in ms
   imageDuration: number; // How long each image shows in ms
   transitionType: TransitionType;
+  music?: MusicTrack;
 }
 
 export type TransitionType = 'fade' | 'slide' | 'zoom' | 'none';
