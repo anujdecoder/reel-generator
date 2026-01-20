@@ -46,6 +46,8 @@ export interface ReelConfig {
   imageDuration: number; // How long each image shows in ms
   transitionType: TransitionType;
   music?: MusicTrack;
+  outputFormat: VideoFormat;
 }
 
 export type TransitionType = 'fade' | 'slide' | 'zoom' | 'none';
+export type VideoFormat = 'webm' | 'mp4';

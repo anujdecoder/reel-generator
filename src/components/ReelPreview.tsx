@@ -1,5 +1,6 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import type { ImageItem, ReelConfig, TransitionType, TextOverlay } from '../types';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import type { ImageItem, ReelConfig, TransitionType, TextOverlay, VideoFormat } from '../types';
+import { convertWebmToMp4, isFFmpegSupported, getFFmpegSupportStatus } from '../utils/videoConverter';
 import './ReelPreview.css';
 
 interface ReelPreviewProps {
@@ -24,8 +25,12 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
+  const [conversionStatus, setConversionStatus] = useState<string>('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const timeoutRef = useRef<number | null>(null);
+  
+  const ffmpegSupported = isFFmpegSupported();
+  const ffmpegStatus = useMemo(() => getFFmpegSupportStatus(), []);
 
   const clearTimeouts = useCallback(() => {
     if (timeoutRef.current) {
@@ -287,7 +292,10 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
 
     // Create video using WebM (with optional audio)
     try {
-      const videoBlob = await createWebMVideo(
+      setConversionStatus('Creating video...');
+      console.log('[ReelPreview] Creating WebM video...');
+      
+      const webmBlob = await createWebMVideo(
         canvas, 
         loadedImages, 
         images, 
@@ -296,22 +304,72 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
         setGenerationProgress
       );
       
+      console.log('[ReelPreview] WebM created, size:', webmBlob.size, 'bytes');
+      
+      let finalBlob: Blob;
+      let filename: string;
+
+      // Convert to MP4 if requested
+      if (config.outputFormat === 'mp4') {
+        console.log('[ReelPreview] MP4 requested, ffmpegSupported:', ffmpegSupported);
+        
+        if (ffmpegSupported) {
+          try {
+            setConversionStatus('Loading MP4 converter...');
+            setGenerationProgress(0);
+            console.log('[ReelPreview] Starting MP4 conversion...');
+            
+            finalBlob = await convertWebmToMp4(webmBlob, (progress) => {
+              console.log('[ReelPreview] Conversion progress:', progress);
+              setConversionStatus(progress.message);
+              if (progress.phase === 'converting') {
+                setGenerationProgress(progress.progress);
+              }
+            });
+            
+            console.log('[ReelPreview] MP4 conversion successful, size:', finalBlob.size);
+            filename = `reel-${Date.now()}.mp4`;
+          } catch (conversionError) {
+            console.error('[ReelPreview] MP4 conversion failed:', conversionError);
+            // Fall back to WebM
+            const errorMessage = conversionError instanceof Error 
+              ? conversionError.message 
+              : 'Unknown error';
+            alert(`MP4 conversion failed: ${errorMessage}\n\nDownloading as WebM instead.`);
+            finalBlob = webmBlob;
+            filename = `reel-${Date.now()}.webm`;
+          }
+        } else {
+          console.warn('[ReelPreview] FFmpeg not supported, reason:', ffmpegStatus.message);
+          alert(`MP4 format is not available:\n${ffmpegStatus.message}\n\nDownloading as WebM instead.`);
+          finalBlob = webmBlob;
+          filename = `reel-${Date.now()}.webm`;
+        }
+      } else {
+        console.log('[ReelPreview] WebM format selected');
+        finalBlob = webmBlob;
+        filename = `reel-${Date.now()}.webm`;
+      }
+      
+      console.log('[ReelPreview] Downloading:', filename, 'size:', finalBlob.size);
+      
       // Download video
-      const url = URL.createObjectURL(videoBlob);
+      const url = URL.createObjectURL(finalBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `reel-${Date.now()}.webm`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Error generating video:', error);
+      console.error('[ReelPreview] Error generating video:', error);
       alert('Error generating video. Your browser might not support video encoding.');
     }
 
     setIsGenerating(false);
     setGenerationProgress(0);
+    setConversionStatus('');
   };
 
   // If showing preview only (large preview on right side)
@@ -412,6 +470,29 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
               <option value="none">None</option>
             </select>
           </div>
+
+          <div className="config-item">
+            <label>Output Format</label>
+            <select
+              value={config.outputFormat}
+              onChange={(e) => onConfigChange({ ...config, outputFormat: e.target.value as VideoFormat })}
+            >
+              <option value="mp4">MP4 {ffmpegSupported ? '✓' : '⚠️'}</option>
+              <option value="webm">WebM (Always works)</option>
+            </select>
+          </div>
+          
+          {config.outputFormat === 'mp4' && !ffmpegSupported && (
+            <div className="format-warning">
+              ⚠️ {ffmpegStatus.message}
+            </div>
+          )}
+          
+          {config.outputFormat === 'mp4' && ffmpegSupported && (
+            <div className="format-success">
+              ✓ MP4 export ready
+            </div>
+          )}
         </div>
 
         <button 
@@ -420,9 +501,11 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
           disabled={images.length < 2 || isGenerating}
         >
           {isGenerating ? (
-            <>Generating... {generationProgress}%</>
+            <>
+              {conversionStatus || `Generating... ${generationProgress}%`}
+            </>
           ) : (
-            <>🎬 Generate Video</>
+            <>🎬 Generate {config.outputFormat === 'mp4' && ffmpegSupported ? 'MP4' : 'WebM'}</>
           )}
         </button>
 
@@ -532,6 +615,29 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
             <option value="none">None</option>
           </select>
         </div>
+
+        <div className="config-item">
+          <label>Output Format</label>
+          <select
+            value={config.outputFormat}
+            onChange={(e) => onConfigChange({ ...config, outputFormat: e.target.value as VideoFormat })}
+          >
+            <option value="mp4">MP4 {ffmpegSupported ? '✓' : '⚠️'}</option>
+            <option value="webm">WebM (Always works)</option>
+          </select>
+        </div>
+        
+        {config.outputFormat === 'mp4' && !ffmpegSupported && (
+          <div className="format-warning">
+            ⚠️ {ffmpegStatus.message}
+          </div>
+        )}
+        
+        {config.outputFormat === 'mp4' && ffmpegSupported && (
+          <div className="format-success">
+            ✓ MP4 export ready
+          </div>
+        )}
       </div>
 
       <button 
@@ -540,9 +646,11 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
         disabled={images.length < 2 || isGenerating}
       >
         {isGenerating ? (
-          <>Generating... {generationProgress}%</>
+          <>
+            {conversionStatus || `Generating... ${generationProgress}%`}
+          </>
         ) : (
-          <>🎬 Generate Video</>
+          <>🎬 Generate {config.outputFormat === 'mp4' && ffmpegSupported ? 'MP4' : 'Video'}</>
         )}
       </button>
 

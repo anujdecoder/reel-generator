@@ -197,6 +197,25 @@
   transition: width 0.1s ease;
 }
 
+.format-warning {
+  font-size: 12px;
+  color: #ecc94b;
+  background: rgba(236, 201, 75, 0.1);
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-top: 8px;
+  line-height: 1.4;
+}
+
+.format-success {
+  font-size: 12px;
+  color: #68d391;
+  background: rgba(104, 211, 145, 0.1);
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
 /* Transition animations */
 @keyframes fadeOut {
   from { opacity: 1; }

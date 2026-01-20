@@ -9,6 +9,7 @@ const DEFAULT_CONFIG: ReelConfig = {
   transitionDuration: 500,
   imageDuration: 2000,
   transitionType: 'fade',
+  outputFormat: 'mp4',
 };
 
 function App() {
