@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ImageUpload, ImageList, ReelPreview, TextOverlayEditor } from './components';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { useImageStorage } from './hooks/useImageStorage';
 import type { ImageItem, ReelConfig, TextOverlay } from './types';
 import './App.css';
 
@@ -11,7 +12,9 @@ const DEFAULT_CONFIG: ReelConfig = {
 };
 
 function App() {
-  const [images, setImages] = useLocalStorage<ImageItem[]>('reel-images', []);
+  // Use IndexedDB for images (supports larger storage)
+  const [images, setImages, isLoadingImages, storageError] = useImageStorage();
+  // Use localStorage for config (small data)
   const [config, setConfig] = useLocalStorage<ReelConfig>('reel-config', DEFAULT_CONFIG);
   const [showPreview, setShowPreview] = useState(false);
   const [editingImage, setEditingImage] = useState<ImageItem | null>(null);
@@ -80,7 +83,22 @@ function App() {
       </div>
 
       <main className="app-main">
-        {!showPreview ? (
+        {/* Show loading state */}
+        {isLoadingImages && (
+          <div className="loading-state">
+            <div className="loading-spinner">⏳</div>
+            <p>Loading your images...</p>
+          </div>
+        )}
+
+        {/* Show storage error if any */}
+        {storageError && (
+          <div className="error-state">
+            <p>⚠️ {storageError}</p>
+          </div>
+        )}
+
+        {!isLoadingImages && !showPreview ? (
           /* Step 1: Upload and Order Images */
           <div className="upload-section">
             <div className="section-header">
@@ -137,7 +155,7 @@ function App() {
               </div>
             )}
           </div>
-        ) : (
+        ) : !isLoadingImages ? (
           /* Step 2: Preview and Generate */
           <div className="preview-section">
             <button className="back-btn" onClick={handleBackToEdit}>
@@ -177,7 +195,7 @@ function App() {
               </div>
             </div>
           </div>
-        )}
+        ) : null}
       </main>
 
       <footer className="app-footer">

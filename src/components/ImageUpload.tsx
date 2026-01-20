@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import type { ImageItem } from '../types';
-import { generateId, fileToDataUrl } from '../utils/helpers';
+import { generateId, compressImage, formatFileSize, getDataUrlSize } from '../utils/helpers';
 import './ImageUpload.css';
 
 interface ImageUploadProps {
@@ -11,6 +11,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesAdded }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState('');
 
   const processFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -20,18 +21,40 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesAdded }) => {
       file.type.startsWith('image/')
     );
 
+    if (imageFiles.length === 0) {
+      setIsProcessing(false);
+      return;
+    }
+
     try {
-      const newImages: ImageItem[] = await Promise.all(
-        imageFiles.map(async (file) => {
-          const dataUrl = await fileToDataUrl(file);
-          return {
+      const newImages: ImageItem[] = [];
+      
+      for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i];
+        setProcessingStatus(`Compressing ${i + 1}/${imageFiles.length}: ${file.name}`);
+        
+        try {
+          // Compress image to reduce storage size
+          const compressedDataUrl = await compressImage(file, 1920, 1920, 0.85);
+          
+          const originalSize = file.size;
+          const compressedSize = getDataUrlSize(compressedDataUrl);
+          
+          console.log(
+            `Compressed ${file.name}: ${formatFileSize(originalSize)} → ${formatFileSize(compressedSize)} ` +
+            `(${Math.round((1 - compressedSize / originalSize) * 100)}% reduction)`
+          );
+
+          newImages.push({
             id: generateId(),
             name: file.name,
-            dataUrl,
-            createdAt: Date.now(),
-          };
-        })
-      );
+            dataUrl: compressedDataUrl,
+            createdAt: Date.now() + i, // Ensure unique timestamps for ordering
+          });
+        } catch (err) {
+          console.error(`Error processing ${file.name}:`, err);
+        }
+      }
 
       if (newImages.length > 0) {
         onImagesAdded(newImages);
@@ -40,6 +63,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesAdded }) => {
       console.error('Error processing files:', error);
     } finally {
       setIsProcessing(false);
+      setProcessingStatus('');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -87,15 +111,21 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesAdded }) => {
         className="file-input"
       />
       <div className="upload-content">
-        <div className="upload-icon">📁</div>
+        <div className="upload-icon">{isProcessing ? '⏳' : '📁'}</div>
         {isProcessing ? (
-          <p>Processing images...</p>
+          <>
+            <p>Processing images...</p>
+            {processingStatus && (
+              <p className="upload-status">{processingStatus}</p>
+            )}
+          </>
         ) : (
           <>
             <p className="upload-text">
               <span className="upload-highlight">Click to upload</span> or drag and drop
             </p>
             <p className="upload-hint">PNG, JPG, GIF, WebP (multiple allowed)</p>
+            <p className="upload-hint">Images are automatically compressed for optimal storage</p>
           </>
         )}
       </div>
