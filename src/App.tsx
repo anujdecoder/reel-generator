@@ -156,13 +156,13 @@ function App() {
                   <ImageUpload onImagesAdded={handleImagesAdded} />
                 </div>
                 <button 
-                  className="action-btn music-btn"
+                  className="action-btn music-btn btn-music"
                   onClick={() => setShowMusicUpload(!showMusicUpload)}
                 >
                   🎵 {config.music ? 'Change Music' : 'Add Music'}
                 </button>
                 <button 
-                  className="action-btn preview-btn"
+                  className="action-btn preview-btn btn-preview"
                   onClick={() => setShowPreview(true)}
                   disabled={images.length < 2}
                 >
@@ -171,7 +171,7 @@ function App() {
               </div>
               <div className="action-bar-right">
                 <span className="image-count">{images.length} image{images.length !== 1 ? 's' : ''}</span>
-                <button className="clear-btn" onClick={handleClearAll}>
+                <button className="action-btn btn-clear" onClick={handleClearAll}>
                   🗑️ Clear All
                 </button>
               </div>

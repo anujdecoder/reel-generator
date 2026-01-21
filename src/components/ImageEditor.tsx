@@ -586,10 +586,10 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
               </div>
               
               <div className="control-actions">
-                <button className="action-btn reset" onClick={handleResetCrop}>
+                <button className="action-btn btn-reset" onClick={handleResetCrop}>
                   🔄 Reset
                 </button>
-                <button className="action-btn primary" onClick={handleSaveCrop}>
+                <button className="action-btn btn-apply-crop" onClick={handleSaveCrop}>
                   ✂️ Apply Crop
                 </button>
               </div>
@@ -729,11 +729,11 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
               
               <div className="control-actions">
                 {image.textOverlay && (
-                  <button className="action-btn danger" onClick={handleRemoveText}>
+                  <button className="action-btn btn-remove-text" onClick={handleRemoveText}>
                     🗑️ Remove Text
                   </button>
                 )}
-                <button className="action-btn primary" onClick={handleSaveText}>
+                <button className="action-btn btn-save-text" onClick={handleSaveText}>
                   💾 Save Text
                 </button>
               </div>

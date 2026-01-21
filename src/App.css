@@ -178,6 +178,9 @@
 }
 
 .action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 10px 18px;
   border: 1px solid #4a5568;
   border-radius: 8px;
@@ -188,6 +191,8 @@
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .action-btn:hover:not(:disabled) {
@@ -199,45 +204,41 @@
   cursor: not-allowed;
 }
 
-.action-btn.preview-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  color: white;
-}
-
-.action-btn.preview-btn:hover:not(:disabled) {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
-.action-btn.music-btn {
+/* Individual button widths */
+.btn-music {
+  width: 140px;
   border-color: #667eea;
   color: #667eea;
 }
 
-.action-btn.music-btn:hover {
+.btn-music:hover {
   background: rgba(102, 126, 234, 0.1);
+}
+
+.btn-preview {
+  width: 180px;
+  border-color: #48bb78;
+  color: #48bb78;
+}
+
+.btn-preview:hover:not(:disabled) {
+  background: rgba(72, 187, 120, 0.1);
+}
+
+.btn-clear {
+  width: 110px;
+  border-color: #e53e3e;
+  color: #e53e3e;
+}
+
+.btn-clear:hover {
+  background: rgba(229, 62, 62, 0.1);
 }
 
 .image-count {
   font-size: 13px;
   color: #a0aec0;
   font-weight: 500;
-}
-
-.clear-btn {
-  padding: 8px 14px;
-  border: 1px solid #e53e3e;
-  border-radius: 8px;
-  background: transparent;
-  color: #e53e3e;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.clear-btn:hover {
-  background: rgba(229, 62, 62, 0.1);
 }
 
 /* Music Upload Row */
