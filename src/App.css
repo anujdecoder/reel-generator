@@ -6,13 +6,13 @@
 
 .app-header {
   text-align: center;
-  padding: 24px 20px 16px;
+  padding: 20px 20px 16px;
   background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
 }
 
 .app-header h1 {
-  margin: 0 0 8px 0;
-  font-size: 32px;
+  margin: 0 0 6px 0;
+  font-size: 28px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -22,88 +22,26 @@
 .app-subtitle {
   margin: 0;
   color: #718096;
-  font-size: 16px;
-}
-
-/* Step Indicator */
-.step-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 20px;
-  border-bottom: 1px solid #2d3748;
-  background: rgba(26, 32, 44, 0.5);
-}
-
-.step {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  opacity: 0.5;
-  transition: opacity 0.3s ease;
-}
-
-.step.active {
-  opacity: 1;
-}
-
-.step.completed {
-  opacity: 0.7;
-}
-
-.step-number {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #2d3748;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
   font-size: 14px;
-  transition: all 0.3s ease;
-}
-
-.step.active .step-number {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.step.completed .step-number {
-  background: #48bb78;
-}
-
-.step-label {
-  font-size: 14px;
-  color: #a0aec0;
-}
-
-.step.active .step-label {
-  color: #e2e8f0;
-  font-weight: 500;
-}
-
-.step-connector {
-  width: 60px;
-  height: 2px;
-  background: #2d3748;
 }
 
 /* Main Content */
 .app-main {
   flex: 1;
-  padding: 24px;
-  max-width: 1200px;
+  padding: 20px;
+  max-width: 1400px;
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
 }
 
-/* Upload Section (Step 1) */
+/* Upload Section (When no images) */
 .upload-section {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  max-width: 600px;
+  margin: 0 auto;
 }
 
 .section-header {
@@ -120,34 +58,6 @@
   margin: 0;
   color: #718096;
   font-size: 14px;
-}
-
-.images-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 4px;
-}
-
-.image-count {
-  font-size: 14px;
-  color: #a0aec0;
-  font-weight: 500;
-}
-
-.clear-btn {
-  padding: 8px 16px;
-  border: 1px solid #e53e3e;
-  border-radius: 8px;
-  background: transparent;
-  color: #e53e3e;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.clear-btn:hover {
-  background: rgba(229, 62, 62, 0.1);
 }
 
 .empty-state {
@@ -197,6 +107,204 @@
   color: #fc8181;
   margin: 0;
   font-size: 14px;
+}
+
+/* ====== NEW EDITOR LAYOUT (3-Row Layout) ====== */
+.editor-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: calc(100vh - 180px);
+  min-height: 500px;
+}
+
+/* Row 1: Action Bar */
+.action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: #1a202c;
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+.action-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.action-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.upload-inline {
+  display: flex;
+}
+
+.upload-inline .image-upload {
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.upload-inline .image-upload .upload-content {
+  flex-direction: row;
+  gap: 8px;
+}
+
+.upload-inline .image-upload .upload-icon {
+  font-size: 18px;
+}
+
+.upload-inline .image-upload .upload-text,
+.upload-inline .image-upload .upload-hint {
+  display: none;
+}
+
+.upload-inline .image-upload .upload-highlight {
+  display: block;
+  font-size: 13px;
+}
+
+.upload-inline .image-upload.processing .upload-content p {
+  display: block;
+  font-size: 12px;
+}
+
+.action-btn {
+  padding: 10px 18px;
+  border: 1px solid #4a5568;
+  border-radius: 8px;
+  background: #2d3748;
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.action-btn:hover:not(:disabled) {
+  background: #4a5568;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-btn.preview-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+}
+
+.action-btn.preview-btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.action-btn.music-btn {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.action-btn.music-btn:hover {
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.image-count {
+  font-size: 13px;
+  color: #a0aec0;
+  font-weight: 500;
+}
+
+.clear-btn {
+  padding: 8px 14px;
+  border: 1px solid #e53e3e;
+  border-radius: 8px;
+  background: transparent;
+  color: #e53e3e;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-btn:hover {
+  background: rgba(229, 62, 62, 0.1);
+}
+
+/* Music Upload Row */
+.music-upload-row {
+  background: #1a202c;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.music-upload-row .music-upload {
+  background: transparent;
+  padding: 0;
+}
+
+/* Row 2: Music Controls */
+.music-row {
+  flex-shrink: 0;
+}
+
+/* Row 3: Two-column editor layout */
+.editor-columns {
+  display: grid;
+  grid-template-columns: 3fr 7fr;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar-column {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sidebar-column .image-sidebar {
+  height: 100%;
+}
+
+.editor-column {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.editor-column .image-editor {
+  height: 100%;
+}
+
+/* Footer */
+.app-footer {
+  text-align: center;
+  padding: 12px 20px;
+  border-top: 1px solid #2d3748;
+  color: #718096;
+  font-size: 13px;
+}
+
+.app-footer p {
+  margin: 0;
+}
+
+/* ====== LEGACY STYLES (kept for compatibility) ====== */
+
+.images-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 4px;
 }
 
 /* Proceed Section */
@@ -249,7 +357,7 @@
   font-size: 14px;
 }
 
-/* Preview Section (Step 2) */
+/* Preview Section (kept for PreviewModal compatibility) */
 .preview-section {
   display: flex;
   flex-direction: column;
@@ -455,78 +563,106 @@
   text-overflow: ellipsis;
 }
 
-/* Footer */
-.app-footer {
-  text-align: center;
-  padding: 16px 20px;
-  border-top: 1px solid #2d3748;
-  color: #718096;
-  font-size: 14px;
-}
-
-.app-footer p {
-  margin: 0;
-}
-
 /* Responsive design */
-@media (max-width: 900px) {
-  .preview-layout {
+@media (max-width: 1024px) {
+  .editor-columns {
     grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
   }
 
-  .preview-right {
-    position: static;
-    order: -1;
-    max-width: 320px;
-    margin: 0 auto 20px;
+  .sidebar-column {
+    max-height: 200px;
   }
 
-  .step-label {
+  .sidebar-column .image-sidebar {
+    height: auto;
+  }
+
+  .sidebar-column .sidebar-list {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px;
+  }
+
+  .sidebar-column .sidebar-item {
+    flex-direction: column;
+    min-width: 80px;
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .sidebar-column .sidebar-info {
     display: none;
   }
 
-  .step-connector {
-    width: 40px;
+  .sidebar-column .sidebar-actions {
+    display: none;
   }
 
-  .app-header h1 {
-    font-size: 28px;
-  }
-
-  .summary-list {
-    max-height: 200px;
+  .sidebar-column .sidebar-drag-icon {
+    display: none;
   }
 }
 
-@media (min-width: 1100px) {
-  .preview-layout {
-    grid-template-columns: 1fr 380px;
+@media (max-width: 768px) {
+  .action-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .action-bar-left {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .action-bar-right {
+    justify-content: space-between;
+  }
+
+  .upload-inline .image-upload {
+    flex: 1;
+    text-align: center;
   }
 }
 
 @media (max-width: 600px) {
   .app-main {
-    padding: 16px;
+    padding: 12px;
   }
 
   .app-header {
-    padding: 16px;
+    padding: 12px;
   }
 
   .app-header h1 {
-    font-size: 24px;
+    font-size: 22px;
   }
 
-  .section-header h2 {
-    font-size: 20px;
+  .editor-layout {
+    height: auto;
+    min-height: calc(100vh - 160px);
   }
 
-  .proceed-btn {
+  .editor-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .action-bar-left {
+    flex-direction: column;
     width: 100%;
-    font-size: 16px;
   }
 
-  .proceed-section {
-    padding: 16px;
+  .action-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .upload-inline {
+    width: 100%;
+  }
+
+  .upload-inline .image-upload {
+    width: 100%;
   }
 }

@@ -51,17 +51,15 @@ The built files will be in the `dist` directory.
 ## Usage
 
 1. **Upload Images**: Click on the upload area or drag and drop images from your computer
-2. **Crop Images**: Click the crop icon on any image to adjust its framing
-3. **Add Text**: Click the text icon to add customizable text overlays
-4. **Arrange Images**: Drag images to reorder them, or use the arrow buttons
-5. **Add Music**: Upload an audio file and adjust start time, end time, and volume
-6. **Preview**: Use the play/pause controls to preview your reel with music
-7. **Configure Settings**:
-   - **Image Duration**: How long each image is displayed (0.5s - 5s)
-   - **Transition Duration**: How long the transition takes (0.2s - 2s)
-   - **Transition Type**: Fade, Slide, Zoom, or None
-   - **Output Format**: MP4 (recommended) or WebM
-8. **Generate Video**: Click "Generate Video" to create and download your reel
+2. **Edit Images**: Click any image in the sidebar to select it, then use the toolbar to:
+   - **Crop**: Click ✂️ Crop to adjust framing with various aspect ratios (9:16, 1:1, 4:5, 16:9)
+   - **Add Text**: Click 📝 Text to add customizable text overlays
+3. **Arrange Images**: Drag images in the sidebar to reorder them, or use the arrow buttons
+4. **Add Music**: Click "Add Music" to upload an audio file and adjust start time, end time, and volume
+5. **Preview & Generate**: Click "Preview & Generate" to:
+   - Preview your reel with music
+   - Configure settings (image duration, transition type, output format)
+   - Download your video
 
 ## MP4 Export
 
@@ -105,11 +103,15 @@ reel-generator/
 ├── src/
 │   ├── components/
 │   │   ├── ImageUpload.tsx       # Drag & drop image upload
-│   │   ├── ImageList.tsx         # Sortable image grid
-│   │   ├── ImageCropEditor.tsx   # Visual crop editor
-│   │   ├── TextOverlayEditor.tsx # Text overlay customization
-│   │   ├── MusicUpload.tsx       # Audio upload & trimming
+│   │   ├── ImageSidebar.tsx      # Sidebar with reorderable image list
+│   │   ├── ImageEditor.tsx       # Main editor with inline crop/text editing
+│   │   ├── ImageList.tsx         # Sortable image grid (legacy)
+│   │   ├── ImageCropEditor.tsx   # Visual crop editor modal
+│   │   ├── TextOverlayEditor.tsx # Text overlay customization modal
+│   │   ├── MusicUpload.tsx       # Audio upload component
+│   │   ├── MusicControls.tsx     # Inline music trimming controls
 │   │   ├── ReelPreview.tsx       # Preview & video generation
+│   │   ├── PreviewModal.tsx      # Preview modal with settings
 │   │   └── index.ts              # Component exports
 │   ├── hooks/
 │   │   ├── useImageStorage.ts    # IndexedDB for images
