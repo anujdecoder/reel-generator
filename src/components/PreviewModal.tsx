@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import type { ImageItem, ReelConfig } from '../types';
 import { ReelPreview } from './ReelPreview';
 import './PreviewModal.css';
@@ -18,8 +18,18 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  // Set up audio source when music is available
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (audio && config.music) {
+      audio.src = config.music.dataUrl;
+      audio.volume = config.music.volume;
+      audio.load(); // Explicitly load the audio
+    }
+  }, [config.music]);
+
   // Handle escape key to close
-  React.useEffect(() => {
+  useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
@@ -58,7 +68,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
           </div>
         </div>
 
-        <audio ref={audioRef} />
+        <audio ref={audioRef} preload="auto" />
       </div>
     </div>
   );

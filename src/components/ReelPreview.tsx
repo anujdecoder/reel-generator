@@ -81,9 +81,22 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
       setIsPlaying(true);
       // Play music from start time
       if (audioRef?.current && config.music) {
-        audioRef.current.currentTime = config.music.startTime;
-        audioRef.current.volume = config.music.volume;
-        audioRef.current.play().catch(console.error);
+        const audio = audioRef.current;
+        // Always set source to ensure it's current
+        if (audio.src !== config.music.dataUrl) {
+          audio.src = config.music.dataUrl;
+          // Wait for audio to be ready
+          audio.load();
+        }
+        audio.volume = config.music.volume;
+        audio.currentTime = config.music.startTime;
+        
+        // Use a small delay to ensure audio is ready after setting currentTime
+        setTimeout(() => {
+          audio.play().catch((error) => {
+            console.error('Error playing audio:', error);
+          });
+        }, 50);
       }
     }
   };
