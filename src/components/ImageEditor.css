@@ -517,6 +517,187 @@
   background: repeating-conic-gradient(#4a5568 0% 25%, #2d3748 0% 50%) 50% / 10px 10px;
 }
 
+/* Timing Mode */
+.timing-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.timing-preview-container {
+  position: relative;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 200px;
+}
+
+.timing-preview-container img {
+  width: 100%;
+  max-height: 250px;
+  object-fit: contain;
+}
+
+.timing-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.timing-duration {
+  background: rgba(102, 126, 234, 0.9);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.timing-transition {
+  background: rgba(0, 0, 0, 0.7);
+  color: #a0aec0;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.timing-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #2d3748;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.timing-controls .control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.timing-controls .control-group label {
+  font-size: 12px;
+  color: #a0aec0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.timing-controls input[type="range"] {
+  width: 100%;
+  accent-color: #667eea;
+}
+
+.duration-presets {
+  display: flex;
+  gap: 8px;
+}
+
+.preset-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #4a5568;
+  border-radius: 6px;
+  background: #1a202c;
+  color: #a0aec0;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.preset-btn:hover {
+  background: #4a5568;
+  color: #e2e8f0;
+}
+
+.preset-btn.active {
+  background: #667eea;
+  border-color: #667eea;
+  color: white;
+}
+
+.transition-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.transition-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid #4a5568;
+  border-radius: 6px;
+  background: #1a202c;
+  color: #a0aec0;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.transition-btn:hover {
+  background: #4a5568;
+  color: #e2e8f0;
+}
+
+.transition-btn.active {
+  background: #667eea;
+  border-color: #667eea;
+  color: white;
+}
+
+.timing-actions {
+  flex-wrap: wrap;
+}
+
+/* Reset Timing button */
+.btn-reset-timing {
+  width: 150px;
+  border: 1px solid #4a5568;
+  background: transparent;
+  color: #a0aec0;
+}
+
+.btn-reset-timing:hover {
+  background: #4a5568;
+  color: #e2e8f0;
+}
+
+/* Copy to All button */
+.btn-copy-all {
+  width: 180px;
+  border: 1px solid #ecc94b;
+  background: transparent;
+  color: #ecc94b;
+}
+
+.btn-copy-all:hover {
+  background: rgba(236, 201, 75, 0.1);
+}
+
+/* Save Timing button */
+.btn-save-timing {
+  width: 140px;
+  border: none;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 600;
+}
+
+.btn-save-timing:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* Info badge for timing */
+.info-badge.timing {
+  background: rgba(236, 201, 75, 0.15);
+  color: #ecc94b;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .control-row {

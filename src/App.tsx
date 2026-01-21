@@ -2,7 +2,7 @@ import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
 import { ImageUpload, ImageSidebar, ImageEditor, MusicUpload, MusicControls, PreviewModal } from './components';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useImageStorage } from './hooks/useImageStorage';
-import type { ImageItem, ReelConfig, TextOverlay, CropSettings, MusicTrack } from './types';
+import type { ImageItem, ReelConfig, TextOverlay, CropSettings, MusicTrack, TransitionType } from './types';
 import './App.css';
 
 const DEFAULT_CONFIG: ReelConfig = {
@@ -25,9 +25,13 @@ function App() {
   // Calculate video duration based on images and config
   const videoDuration = useMemo(() => {
     if (images.length === 0) return 0;
-    const totalMs = images.length * (config.imageDuration + config.transitionDuration);
+    // Sum up per-image durations (using default if not set) plus transitions
+    const totalMs = images.reduce((sum, img) => {
+      const duration = img.duration ?? config.imageDuration;
+      return sum + duration + config.transitionDuration;
+    }, 0);
     return totalMs / 1000; // Convert to seconds
-  }, [images.length, config.imageDuration, config.transitionDuration]);
+  }, [images, config.imageDuration, config.transitionDuration]);
 
   // Select first image when images change and no image is selected
   useEffect(() => {
@@ -91,6 +95,28 @@ function App() {
     // Update selected image if it's the one being edited
     if (selectedImage?.id === imageId) {
       setSelectedImage(prev => prev ? { ...prev, cropSettings, croppedDataUrl } : null);
+    }
+  }, [setImages, selectedImage]);
+
+  const handleSaveTiming = useCallback((imageId: string, duration: number | undefined, transitionType: TransitionType | undefined) => {
+    setImages((prev) =>
+      prev.map((img) =>
+        img.id === imageId ? { ...img, duration, transitionType } : img
+      )
+    );
+    // Update selected image if it's the one being edited
+    if (selectedImage?.id === imageId) {
+      setSelectedImage(prev => prev ? { ...prev, duration, transitionType } : null);
+    }
+  }, [setImages, selectedImage]);
+
+  const handleCopyTimingToAll = useCallback((duration: number, transitionType: TransitionType) => {
+    setImages((prev) =>
+      prev.map((img) => ({ ...img, duration, transitionType }))
+    );
+    // Update selected image with new timing
+    if (selectedImage) {
+      setSelectedImage(prev => prev ? { ...prev, duration, transitionType } : null);
     }
   }, [setImages, selectedImage]);
 
@@ -216,8 +242,12 @@ function App() {
               <div className="editor-column">
                 <ImageEditor
                   image={selectedImage}
+                  defaultDuration={config.imageDuration}
+                  defaultTransition={config.transitionType}
                   onSaveTextOverlay={handleSaveTextOverlay}
                   onSaveCrop={handleSaveCrop}
+                  onSaveTiming={handleSaveTiming}
+                  onCopyTimingToAll={handleCopyTimingToAll}
                 />
               </div>
             </div>

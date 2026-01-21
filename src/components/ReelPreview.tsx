@@ -430,10 +430,11 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
     return (
       <div className="reel-preview controls-only">
         <div className="config-section">
-          <h4>⚙️ Settings</h4>
+          <h4>⚙️ Default Settings</h4>
+          <p className="config-hint">These apply to images without custom timing</p>
           
           <div className="config-item">
-            <label>Image Duration</label>
+            <label>Default Image Duration</label>
             <input
               type="range"
               min="500"
@@ -459,7 +460,7 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
           </div>
 
           <div className="config-item">
-            <label>Transition Type</label>
+            <label>Default Transition Type</label>
             <select
               value={config.transitionType}
               onChange={(e) => onConfigChange({ ...config, transitionType: e.target.value as TransitionType })}
@@ -575,10 +576,11 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
       </div>
 
       <div className="config-section">
-        <h4>Settings</h4>
+        <h4>Default Settings</h4>
+        <p className="config-hint">These apply to images without custom timing</p>
         
         <div className="config-item">
-          <label>Image Duration</label>
+          <label>Default Image Duration</label>
           <input
             type="range"
             min="500"
@@ -604,7 +606,7 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
         </div>
 
         <div className="config-item">
-          <label>Transition Type</label>
+          <label>Default Transition Type</label>
           <select
             value={config.transitionType}
             onChange={(e) => onConfigChange({ ...config, transitionType: e.target.value as TransitionType })}

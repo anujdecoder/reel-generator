@@ -1,14 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { ImageItem, TextOverlay, TextPosition, CropSettings, AspectRatio } from '../types';
+import type { ImageItem, TextOverlay, TextPosition, CropSettings, AspectRatio, TransitionType } from '../types';
 import './ImageEditor.css';
 
 interface ImageEditorProps {
   image: ImageItem | null;
+  defaultDuration: number;
+  defaultTransition: TransitionType;
   onSaveTextOverlay: (imageId: string, textOverlay: TextOverlay | undefined) => void;
   onSaveCrop: (imageId: string, cropSettings: CropSettings, croppedDataUrl: string) => void;
+  onSaveTiming: (imageId: string, duration: number | undefined, transitionType: TransitionType | undefined) => void;
+  onCopyTimingToAll: (duration: number, transitionType: TransitionType) => void;
 }
 
-type EditorMode = 'view' | 'crop' | 'text';
+type EditorMode = 'view' | 'crop' | 'text' | 'timing';
 
 const DEFAULT_TEXT_OVERLAY: TextOverlay = {
   text: '',
@@ -37,6 +41,13 @@ const ASPECT_RATIOS: { label: string; value: AspectRatio; ratio: number | null }
   { label: 'Free', value: 'free', ratio: null },
 ];
 
+const TRANSITION_TYPES: { label: string; value: TransitionType }[] = [
+  { label: 'Fade', value: 'fade' },
+  { label: 'Slide', value: 'slide' },
+  { label: 'Zoom', value: 'zoom' },
+  { label: 'None', value: 'none' },
+];
+
 const getAspectRatioValue = (ar: AspectRatio): number | null => {
   const found = ASPECT_RATIOS.find(a => a.value === ar);
   return found?.ratio || null;
@@ -44,12 +55,18 @@ const getAspectRatioValue = (ar: AspectRatio): number | null => {
 
 export const ImageEditor: React.FC<ImageEditorProps> = ({
   image,
+  defaultDuration,
+  defaultTransition,
   onSaveTextOverlay,
   onSaveCrop,
+  onSaveTiming,
+  onCopyTimingToAll,
 }) => {
   const [mode, setMode] = useState<EditorMode>('view');
   const [textOverlay, setTextOverlay] = useState<TextOverlay>(DEFAULT_TEXT_OVERLAY);
   const [cropSettings, setCropSettings] = useState<CropSettings>(DEFAULT_CROP);
+  const [timingDuration, setTimingDuration] = useState<number>(defaultDuration);
+  const [timingTransition, setTimingTransition] = useState<TransitionType>(defaultTransition);
   
   // Crop editor state
   const containerRef = useRef<HTMLDivElement>(null);
@@ -66,11 +83,13 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
     if (image) {
       setTextOverlay(image.textOverlay || DEFAULT_TEXT_OVERLAY);
       setCropSettings(image.cropSettings || DEFAULT_CROP);
+      setTimingDuration(image.duration ?? defaultDuration);
+      setTimingTransition(image.transitionType ?? defaultTransition);
       setMode('view');
       setImageLoaded(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [image?.id]);
+  }, [image?.id, defaultDuration, defaultTransition]);
 
   // Load the image for crop editor
   useEffect(() => {
@@ -448,6 +467,28 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
     setMode('view');
   };
 
+  const handleSaveTiming = () => {
+    if (!image) return;
+    // Save per-image timing (undefined means use global defaults)
+    const duration = timingDuration !== defaultDuration ? timingDuration : undefined;
+    const transition = timingTransition !== defaultTransition ? timingTransition : undefined;
+    onSaveTiming(image.id, duration, transition);
+    setMode('view');
+  };
+
+  const handleResetTiming = () => {
+    setTimingDuration(defaultDuration);
+    setTimingTransition(defaultTransition);
+  };
+
+  const handleCopyToAll = () => {
+    onCopyTimingToAll(timingDuration, timingTransition);
+    setMode('view');
+  };
+
+  // Check if this image has custom timing
+  const hasCustomTiming = image?.duration !== undefined || image?.transitionType !== undefined;
+
   const getTextPositionStyle = (): React.CSSProperties => {
     const base: React.CSSProperties = {
       position: 'absolute',
@@ -507,6 +548,12 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
               >
                 📝 Text
               </button>
+              <button
+                className={`toolbar-btn ${hasCustomTiming ? 'has-edit' : ''}`}
+                onClick={() => setMode('timing')}
+              >
+                ⏱️ Timing
+              </button>
             </>
           )}
           {mode !== 'view' && (
@@ -538,6 +585,11 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
               )}
               {image.textOverlay && (
                 <span className="info-badge text">📝 "{image.textOverlay.text.substring(0, 20)}{image.textOverlay.text.length > 20 ? '...' : ''}"</span>
+              )}
+              {hasCustomTiming && (
+                <span className="info-badge timing">
+                  ⏱️ {((image.duration ?? defaultDuration) / 1000).toFixed(1)}s · {image.transitionType ?? defaultTransition}
+                </span>
               )}
             </div>
           </div>
@@ -735,6 +787,85 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
                 )}
                 <button className="action-btn btn-save-text" onClick={handleSaveText}>
                   💾 Save Text
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {mode === 'timing' && (
+          <div className="timing-mode">
+            <div className="timing-preview-container">
+              <img src={image.croppedDataUrl || image.dataUrl} alt={image.name} />
+              <div className="timing-badge">
+                <span className="timing-duration">{(timingDuration / 1000).toFixed(1)}s</span>
+                <span className="timing-transition">{timingTransition}</span>
+              </div>
+            </div>
+            
+            <div className="timing-controls">
+              <div className="control-group">
+                <label>Duration: {(timingDuration / 1000).toFixed(1)} seconds</label>
+                <input
+                  type="range"
+                  min="500"
+                  max="10000"
+                  step="100"
+                  value={timingDuration}
+                  onChange={(e) => setTimingDuration(Number(e.target.value))}
+                />
+                <div className="duration-presets">
+                  <button
+                    className={`preset-btn ${timingDuration === 1000 ? 'active' : ''}`}
+                    onClick={() => setTimingDuration(1000)}
+                  >
+                    1s
+                  </button>
+                  <button
+                    className={`preset-btn ${timingDuration === 2000 ? 'active' : ''}`}
+                    onClick={() => setTimingDuration(2000)}
+                  >
+                    2s
+                  </button>
+                  <button
+                    className={`preset-btn ${timingDuration === 3000 ? 'active' : ''}`}
+                    onClick={() => setTimingDuration(3000)}
+                  >
+                    3s
+                  </button>
+                  <button
+                    className={`preset-btn ${timingDuration === 5000 ? 'active' : ''}`}
+                    onClick={() => setTimingDuration(5000)}
+                  >
+                    5s
+                  </button>
+                </div>
+              </div>
+              
+              <div className="control-group">
+                <label>Transition Type</label>
+                <div className="transition-buttons">
+                  {TRANSITION_TYPES.map((t) => (
+                    <button
+                      key={t.value}
+                      className={`transition-btn ${timingTransition === t.value ? 'active' : ''}`}
+                      onClick={() => setTimingTransition(t.value)}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="control-actions timing-actions">
+                <button className="action-btn btn-reset-timing" onClick={handleResetTiming}>
+                  🔄 Reset to Default
+                </button>
+                <button className="action-btn btn-copy-all" onClick={handleCopyToAll}>
+                  📋 Copy to All Images
+                </button>
+                <button className="action-btn btn-save-timing" onClick={handleSaveTiming}>
+                  💾 Save Timing
                 </button>
               </div>
             </div>
