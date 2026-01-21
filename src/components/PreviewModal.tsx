@@ -1,7 +1,16 @@
 import React, { useRef, useEffect } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton,
+  Typography,
+  Grid,
+  Paper,
+} from '@mui/material';
+import { Close as CloseIcon } from '@mui/icons-material';
 import type { ImageItem, ReelConfig } from '../types';
 import { ReelPreview } from './ReelPreview';
-import './PreviewModal.css';
 
 interface PreviewModalProps {
   images: ImageItem[];
@@ -28,48 +37,57 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
     }
   }, [config.music]);
 
-  // Handle escape key to close
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
-
   return (
-    <div className="preview-modal-overlay" onClick={onClose}>
-      <div className="preview-modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="preview-modal-header">
-          <h2>🎬 Preview & Generate Video</h2>
-          <button className="close-btn" onClick={onClose}>✕</button>
-        </div>
+    <Dialog
+      open
+      onClose={onClose}
+      maxWidth="lg"
+      fullWidth
+      PaperProps={{
+        sx: { minHeight: '80vh' }
+      }}
+    >
+      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6">🎬 Preview & Generate Video</Typography>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
 
-        <div className="preview-modal-body">
-          <div className="preview-column">
-            <h3>Preview</h3>
-            <ReelPreview
-              images={images}
-              config={config}
-              onConfigChange={onConfigChange}
-              showPreviewOnly={true}
-              audioRef={audioRef}
-            />
-          </div>
+      <DialogContent>
+        <Grid container spacing={3}>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Paper sx={{ p: 2, height: '100%' }}>
+              <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+                Preview
+              </Typography>
+              <ReelPreview
+                images={images}
+                config={config}
+                onConfigChange={onConfigChange}
+                showPreviewOnly={true}
+                audioRef={audioRef}
+              />
+            </Paper>
+          </Grid>
 
-          <div className="settings-column">
-            <h3>Settings & Export</h3>
-            <ReelPreview
-              images={images}
-              config={config}
-              onConfigChange={onConfigChange}
-              showPreviewPlayer={false}
-            />
-          </div>
-        </div>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Paper sx={{ p: 2, height: '100%' }}>
+              <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+                Settings & Export
+              </Typography>
+              <ReelPreview
+                images={images}
+                config={config}
+                onConfigChange={onConfigChange}
+                showPreviewPlayer={false}
+              />
+            </Paper>
+          </Grid>
+        </Grid>
 
         <audio ref={audioRef} preload="auto" />
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

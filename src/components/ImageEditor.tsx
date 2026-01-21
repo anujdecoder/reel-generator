@@ -1,6 +1,39 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { ImageItem, TextOverlay, TextPosition, CropSettings, AspectRatio, TransitionType } from '../types';
-import './ImageEditor.css';
+import {
+  Box,
+  Typography,
+  Button,
+  Chip,
+  Slider,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Stack,
+  Paper,
+  IconButton,
+  CircularProgress,
+} from '@mui/material';
+import {
+  ContentCut as CropIcon,
+  TextFields as TextIcon,
+  Timer as TimerIcon,
+  Close as CloseIcon,
+  Refresh as ResetIcon,
+  Save as SaveIcon,
+  Delete as DeleteIcon,
+  ContentCopy as CopyIcon,
+  FormatAlignLeft as AlignLeftIcon,
+  FormatAlignCenter as AlignCenterIcon,
+  FormatAlignRight as AlignRightIcon,
+  VerticalAlignTop as TopIcon,
+  VerticalAlignCenter as CenterIcon,
+  VerticalAlignBottom as BottomIcon,
+} from '@mui/icons-material';
+import type { ImageItem, TextOverlay, CropSettings, AspectRatio, TransitionType } from '../types';
 
 interface ImageEditorProps {
   image: ImageItem | null;
@@ -34,10 +67,10 @@ const DEFAULT_CROP: CropSettings = {
 };
 
 const ASPECT_RATIOS: { label: string; value: AspectRatio; ratio: number | null }[] = [
-  { label: '9:16 (Reel)', value: '9:16', ratio: 9 / 16 },
-  { label: '1:1 (Square)', value: '1:1', ratio: 1 },
-  { label: '4:5 (Portrait)', value: '4:5', ratio: 4 / 5 },
-  { label: '16:9 (Landscape)', value: '16:9', ratio: 16 / 9 },
+  { label: '9:16', value: '9:16', ratio: 9 / 16 },
+  { label: '1:1', value: '1:1', ratio: 1 },
+  { label: '4:5', value: '4:5', ratio: 4 / 5 },
+  { label: '16:9', value: '16:9', ratio: 16 / 9 },
   { label: 'Free', value: 'free', ratio: null },
 ];
 
@@ -46,6 +79,15 @@ const TRANSITION_TYPES: { label: string; value: TransitionType }[] = [
   { label: 'Slide', value: 'slide' },
   { label: 'Zoom', value: 'zoom' },
   { label: 'None', value: 'none' },
+];
+
+const BG_PRESETS = [
+  { value: 'rgba(0, 0, 0, 0.6)', color: '#000000' },
+  { value: 'rgba(255, 255, 255, 0.8)', color: '#ffffff' },
+  { value: 'rgba(102, 126, 234, 0.8)', color: '#667eea' },
+  { value: 'rgba(239, 68, 68, 0.8)', color: '#ef4444' },
+  { value: 'rgba(72, 187, 120, 0.8)', color: '#48bb78' },
+  { value: 'transparent', color: 'transparent' },
 ];
 
 const getAspectRatioValue = (ar: AspectRatio): number | null => {
@@ -78,7 +120,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
-  // Reset state when image changes - intentional sync state with props
+  // Reset state when image changes
   useEffect(() => {
     if (image) {
       setTextOverlay(image.textOverlay || DEFAULT_TEXT_OVERLAY);
@@ -88,7 +130,6 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
       setMode('view');
       setImageLoaded(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [image?.id, defaultDuration, defaultTransition]);
 
   // Load the image for crop editor
@@ -101,7 +142,6 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
       setImageLoaded(true);
     };
     img.src = image.dataUrl;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [image?.dataUrl, mode]);
 
   // Update container size for crop editor
@@ -129,223 +169,142 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
     if (!ctx) return;
 
     const img = imageRef.current;
-    const containerWidth = Math.min(containerSize.width || 500, 700);
-    const containerHeight = Math.min(containerSize.height || 300, 300);
-
-    const padding = 20;
-    const availableWidth = containerWidth - padding * 2;
-    const availableHeight = containerHeight - padding * 2;
     
-    const scale = Math.min(
-      availableWidth / img.width,
-      availableHeight / img.height
-    );
-
+    const maxWidth = containerSize.width || 500;
+    const maxHeight = 280;
+    
+    const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
     const displayWidth = img.width * scale;
     const displayHeight = img.height * scale;
-
-    canvas.width = displayWidth + padding * 2;
-    canvas.height = displayHeight + padding * 2;
-
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const imgX = padding;
-    const imgY = padding;
     
-    ctx.drawImage(img, imgX, imgY, displayWidth, displayHeight);
-
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    canvas.width = displayWidth;
+    canvas.height = displayHeight;
     
-    const cropX = imgX + cropSettings.x * displayWidth;
-    const cropY = imgY + cropSettings.y * displayHeight;
+    ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
+    
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(0, 0, displayWidth, displayHeight);
+    
+    const cropX = cropSettings.x * displayWidth;
+    const cropY = cropSettings.y * displayHeight;
     const cropW = cropSettings.width * displayWidth;
     const cropH = cropSettings.height * displayHeight;
-
-    ctx.fillRect(0, 0, canvas.width, cropY);
-    ctx.fillRect(0, cropY + cropH, canvas.width, canvas.height - cropY - cropH);
-    ctx.fillRect(0, cropY, cropX, cropH);
-    ctx.fillRect(cropX + cropW, cropY, canvas.width - cropX - cropW, cropH);
-
+    
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(cropX, cropY, cropW, cropH);
+    ctx.clip();
+    ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
+    ctx.restore();
+    
     ctx.strokeStyle = '#667eea';
     ctx.lineWidth = 2;
     ctx.strokeRect(cropX, cropY, cropW, cropH);
-
-    const handleSize = 10;
+    
     ctx.fillStyle = '#667eea';
-    
-    ctx.fillRect(cropX - handleSize/2, cropY - handleSize/2, handleSize, handleSize);
-    ctx.fillRect(cropX + cropW - handleSize/2, cropY - handleSize/2, handleSize, handleSize);
-    ctx.fillRect(cropX - handleSize/2, cropY + cropH - handleSize/2, handleSize, handleSize);
-    ctx.fillRect(cropX + cropW - handleSize/2, cropY + cropH - handleSize/2, handleSize, handleSize);
-
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.lineWidth = 1;
-    
-    ctx.beginPath();
-    ctx.moveTo(cropX + cropW / 3, cropY);
-    ctx.lineTo(cropX + cropW / 3, cropY + cropH);
-    ctx.moveTo(cropX + (cropW * 2) / 3, cropY);
-    ctx.lineTo(cropX + (cropW * 2) / 3, cropY + cropH);
-    ctx.moveTo(cropX, cropY + cropH / 3);
-    ctx.lineTo(cropX + cropW, cropY + cropH / 3);
-    ctx.moveTo(cropX, cropY + (cropH * 2) / 3);
-    ctx.lineTo(cropX + cropW, cropY + (cropH * 2) / 3);
-    ctx.stroke();
+    const handleSize = 8;
+    const handles = [
+      { x: cropX, y: cropY },
+      { x: cropX + cropW, y: cropY },
+      { x: cropX, y: cropY + cropH },
+      { x: cropX + cropW, y: cropY + cropH },
+    ];
+    handles.forEach(h => {
+      ctx.fillRect(h.x - handleSize/2, h.y - handleSize/2, handleSize, handleSize);
+    });
   }, [mode, imageLoaded, cropSettings, containerSize]);
 
-  const getImageDimensions = () => {
-    if (!imageRef.current) return { imgX: 0, imgY: 0, displayWidth: 0, displayHeight: 0, padding: 20 };
+  const getCanvasCoords = (e: React.MouseEvent): { x: number; y: number } => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
     
-    const img = imageRef.current;
-    const containerWidth = Math.min(containerSize.width || 500, 700);
-    const containerHeight = Math.min(containerSize.height || 300, 300);
-    const padding = 20;
-    const availableWidth = containerWidth - padding * 2;
-    const availableHeight = containerHeight - padding * 2;
-    
-    const scale = Math.min(
-      availableWidth / img.width,
-      availableHeight / img.height
-    );
-
+    const rect = canvas.getBoundingClientRect();
     return {
-      imgX: padding,
-      imgY: padding,
-      displayWidth: img.width * scale,
-      displayHeight: img.height * scale,
-      padding,
+      x: (e.clientX - rect.left) / canvas.width,
+      y: (e.clientY - rect.top) / canvas.height,
     };
   };
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current || !imageRef.current) return;
-
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const mouseX = (e.clientX - rect.left) * scaleX;
-    const mouseY = (e.clientY - rect.top) * scaleY;
-
-    const { imgX, imgY, displayWidth, displayHeight } = getImageDimensions();
-
-    const cropX = imgX + cropSettings.x * displayWidth;
-    const cropY = imgY + cropSettings.y * displayHeight;
-    const cropW = cropSettings.width * displayWidth;
-    const cropH = cropSettings.height * displayHeight;
-
-    const handleSize = 15;
-
-    if (Math.abs(mouseX - cropX) < handleSize && Math.abs(mouseY - cropY) < handleSize) {
-      setIsResizing('tl');
-    } else if (Math.abs(mouseX - (cropX + cropW)) < handleSize && Math.abs(mouseY - cropY) < handleSize) {
-      setIsResizing('tr');
-    } else if (Math.abs(mouseX - cropX) < handleSize && Math.abs(mouseY - (cropY + cropH)) < handleSize) {
-      setIsResizing('bl');
-    } else if (Math.abs(mouseX - (cropX + cropW)) < handleSize && Math.abs(mouseY - (cropY + cropH)) < handleSize) {
-      setIsResizing('br');
-    } else if (
-      mouseX >= cropX && mouseX <= cropX + cropW &&
-      mouseY >= cropY && mouseY <= cropY + cropH
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const coords = getCanvasCoords(e);
+    const handleSize = 0.03;
+    
+    const corners = [
+      { name: 'nw', x: cropSettings.x, y: cropSettings.y },
+      { name: 'ne', x: cropSettings.x + cropSettings.width, y: cropSettings.y },
+      { name: 'sw', x: cropSettings.x, y: cropSettings.y + cropSettings.height },
+      { name: 'se', x: cropSettings.x + cropSettings.width, y: cropSettings.y + cropSettings.height },
+    ];
+    
+    for (const corner of corners) {
+      if (Math.abs(coords.x - corner.x) < handleSize && Math.abs(coords.y - corner.y) < handleSize) {
+        setIsResizing(corner.name);
+        setDragStart(coords);
+        return;
+      }
+    }
+    
+    if (
+      coords.x >= cropSettings.x && 
+      coords.x <= cropSettings.x + cropSettings.width &&
+      coords.y >= cropSettings.y && 
+      coords.y <= cropSettings.y + cropSettings.height
     ) {
       setIsDragging(true);
+      setDragStart(coords);
     }
-
-    setDragStart({ x: mouseX, y: mouseY });
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging && !isResizing) return;
-    if (!canvasRef.current || !imageRef.current) return;
-
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const mouseX = (e.clientX - rect.left) * scaleX;
-    const mouseY = (e.clientY - rect.top) * scaleY;
-
-    const { displayWidth, displayHeight } = getImageDimensions();
-
-    const deltaX = (mouseX - dragStart.x) / displayWidth;
-    const deltaY = (mouseY - dragStart.y) / displayHeight;
-
+    
+    const coords = getCanvasCoords(e);
+    const dx = coords.x - dragStart.x;
+    const dy = coords.y - dragStart.y;
+    
     if (isDragging) {
-      setCropSettings(prev => {
-        let newX = prev.x + deltaX;
-        let newY = prev.y + deltaY;
-
-        newX = Math.max(0, Math.min(1 - prev.width, newX));
-        newY = Math.max(0, Math.min(1 - prev.height, newY));
-
-        return { ...prev, x: newX, y: newY };
-      });
+      setCropSettings(prev => ({
+        ...prev,
+        x: Math.max(0, Math.min(1 - prev.width, prev.x + dx)),
+        y: Math.max(0, Math.min(1 - prev.height, prev.y + dy)),
+      }));
     } else if (isResizing) {
       setCropSettings(prev => {
         let { x, y, width, height } = prev;
         const aspectRatio = getAspectRatioValue(prev.aspectRatio);
-
+        
         switch (isResizing) {
-          case 'br':
-            width = Math.max(0.1, Math.min(1 - x, prev.width + deltaX));
-            if (aspectRatio) {
-              height = width / aspectRatio;
-            } else {
-              height = Math.max(0.1, Math.min(1 - y, prev.height + deltaY));
-            }
+          case 'se':
+            width = Math.max(0.1, Math.min(1 - x, prev.width + dx));
+            height = aspectRatio ? width / aspectRatio : Math.max(0.1, Math.min(1 - y, prev.height + dy));
             break;
-          case 'bl': {
-            const newWidthBl = Math.max(0.1, prev.width - deltaX);
-            x = prev.x + prev.width - newWidthBl;
-            width = newWidthBl;
-            if (aspectRatio) {
-              height = width / aspectRatio;
-            } else {
-              height = Math.max(0.1, Math.min(1 - y, prev.height + deltaY));
-            }
+          case 'sw':
+            const newWidthSW = Math.max(0.1, prev.width - dx);
+            x = Math.max(0, prev.x + prev.width - newWidthSW);
+            width = newWidthSW;
+            height = aspectRatio ? width / aspectRatio : Math.max(0.1, Math.min(1 - y, prev.height + dy));
             break;
-          }
-          case 'tr': {
-            width = Math.max(0.1, Math.min(1 - x, prev.width + deltaX));
-            if (aspectRatio) {
-              const newHeight = width / aspectRatio;
-              y = prev.y + prev.height - newHeight;
-              height = newHeight;
-            } else {
-              const newHeightTr = Math.max(0.1, prev.height - deltaY);
-              y = prev.y + prev.height - newHeightTr;
-              height = newHeightTr;
-            }
+          case 'ne':
+            width = Math.max(0.1, Math.min(1 - x, prev.width + dx));
+            const newHeightNE = aspectRatio ? width / aspectRatio : Math.max(0.1, prev.height - dy);
+            y = Math.max(0, prev.y + prev.height - newHeightNE);
+            height = newHeightNE;
             break;
-          }
-          case 'tl': {
-            const newWidthTl = Math.max(0.1, prev.width - deltaX);
-            x = prev.x + prev.width - newWidthTl;
-            width = newWidthTl;
-            if (aspectRatio) {
-              const newHeight = width / aspectRatio;
-              y = prev.y + prev.height - newHeight;
-              height = newHeight;
-            } else {
-              const newHeightTl = Math.max(0.1, prev.height - deltaY);
-              y = prev.y + prev.height - newHeightTl;
-              height = newHeightTl;
-            }
+          case 'nw':
+            const newWidthNW = Math.max(0.1, prev.width - dx);
+            const newHeightNW = aspectRatio ? newWidthNW / aspectRatio : Math.max(0.1, prev.height - dy);
+            x = Math.max(0, prev.x + prev.width - newWidthNW);
+            y = Math.max(0, prev.y + prev.height - newHeightNW);
+            width = newWidthNW;
+            height = newHeightNW;
             break;
-          }
         }
-
-        x = Math.max(0, x);
-        y = Math.max(0, y);
-        if (x + width > 1) width = 1 - x;
-        if (y + height > 1) height = 1 - y;
-
+        
         return { ...prev, x, y, width, height };
       });
     }
-
-    setDragStart({ x: mouseX, y: mouseY });
+    
+    setDragStart(coords);
   };
 
   const handleMouseUp = () => {
@@ -354,109 +313,66 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
   };
 
   const handleAspectRatioChange = (ar: AspectRatio) => {
-    const ratio = ASPECT_RATIOS.find(a => a.value === ar)?.ratio;
+    const ratio = getAspectRatioValue(ar);
     
-    setCropSettings(prev => {
-      if (!ratio) {
-        return { ...prev, aspectRatio: ar };
-      }
-
-      let { x, y, width, height } = prev;
-      const currentRatio = width / height;
-
-      if (currentRatio > ratio) {
-        const newWidth = height * ratio;
-        x = x + (width - newWidth) / 2;
-        width = newWidth;
-      } else {
-        const newHeight = width / ratio;
-        y = y + (height - newHeight) / 2;
-        height = newHeight;
-      }
-
-      if (x < 0) x = 0;
-      if (y < 0) y = 0;
-      if (x + width > 1) x = 1 - width;
-      if (y + height > 1) y = 1 - height;
-
-      return { ...prev, x, y, width, height, aspectRatio: ar };
-    });
-  };
-
-  const handleResetCrop = () => {
-    const ratio = getAspectRatioValue(cropSettings.aspectRatio);
     if (ratio) {
-      let width = 1;
-      let height = 1 / ratio;
-      if (height > 1) {
-        height = 1;
-        width = ratio;
+      const centerX = cropSettings.x + cropSettings.width / 2;
+      const centerY = cropSettings.y + cropSettings.height / 2;
+      
+      let newWidth = cropSettings.width;
+      let newHeight = newWidth / ratio;
+      
+      if (newHeight > 1) {
+        newHeight = 1;
+        newWidth = newHeight * ratio;
       }
-      setCropSettings({
-        ...DEFAULT_CROP,
-        aspectRatio: cropSettings.aspectRatio,
-        x: (1 - width) / 2,
-        y: (1 - height) / 2,
-        width,
-        height,
-      });
+      
+      let newX = centerX - newWidth / 2;
+      let newY = centerY - newHeight / 2;
+      
+      newX = Math.max(0, Math.min(1 - newWidth, newX));
+      newY = Math.max(0, Math.min(1 - newHeight, newY));
+      
+      setCropSettings({ ...cropSettings, aspectRatio: ar, x: newX, y: newY, width: newWidth, height: newHeight });
     } else {
-      setCropSettings({ ...DEFAULT_CROP, aspectRatio: 'free' });
+      setCropSettings({ ...cropSettings, aspectRatio: ar });
     }
   };
 
-  const generateCroppedImage = (): string => {
-    if (!imageRef.current || !image) return image?.dataUrl || '';
+  const handleResetCrop = () => {
+    setCropSettings(DEFAULT_CROP);
+  };
 
+  const handleSaveCropClick = () => {
+    if (!image || !imageRef.current) return;
+    
     const img = imageRef.current;
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    if (!ctx) return image.dataUrl;
-
-    const srcX = cropSettings.x * img.width;
-    const srcY = cropSettings.y * img.height;
-    const srcW = cropSettings.width * img.width;
-    const srcH = cropSettings.height * img.height;
-
-    const outputWidth = 1080;
-    const outputHeight = Math.round(outputWidth / (srcW / srcH));
-
-    canvas.width = outputWidth;
-    canvas.height = outputHeight;
-
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-
-    ctx.drawImage(
-      img,
-      srcX, srcY, srcW, srcH,
-      0, 0, outputWidth, outputHeight
-    );
-
-    return canvas.toDataURL('image/jpeg', 0.9);
-  };
-
-  const handleSaveCrop = () => {
-    if (!image) return;
-    const croppedDataUrl = generateCroppedImage();
+    if (!ctx) return;
+    
+    const cropX = cropSettings.x * img.width;
+    const cropY = cropSettings.y * img.height;
+    const cropW = cropSettings.width * img.width;
+    const cropH = cropSettings.height * img.height;
+    
+    canvas.width = cropW;
+    canvas.height = cropH;
+    
+    ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+    
+    const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
     onSaveCrop(image.id, cropSettings, croppedDataUrl);
     setMode('view');
   };
 
-  const handleTextChange = <K extends keyof TextOverlay>(
-    key: K,
-    value: TextOverlay[K]
-  ) => {
-    setTextOverlay((prev) => ({ ...prev, [key]: value }));
+  const handleTextChange = <K extends keyof TextOverlay>(field: K, value: TextOverlay[K]) => {
+    setTextOverlay(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSaveText = () => {
-    if (!image) return;
-    if (textOverlay.text.trim()) {
-      onSaveTextOverlay(image.id, textOverlay);
-    } else {
-      onSaveTextOverlay(image.id, undefined);
-    }
+    if (!image || !textOverlay.text.trim()) return;
+    onSaveTextOverlay(image.id, textOverlay);
     setMode('view');
   };
 
@@ -469,7 +385,6 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
 
   const handleSaveTiming = () => {
     if (!image) return;
-    // Save per-image timing (undefined means use global defaults)
     const duration = timingDuration !== defaultDuration ? timingDuration : undefined;
     const transition = timingTransition !== defaultTransition ? timingTransition : undefined;
     onSaveTiming(image.id, duration, transition);
@@ -486,7 +401,6 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
     setMode('view');
   };
 
-  // Check if this image has custom timing
   const hasCustomTiming = image?.duration !== undefined || image?.transitionType !== undefined;
 
   const getTextPositionStyle = (): React.CSSProperties => {
@@ -505,373 +419,241 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
     };
 
     switch (textOverlay.position) {
-      case 'top':
-        return { ...base, top: 0 };
-      case 'center':
-        return { ...base, top: '50%', transform: 'translateY(-50%)' };
-      case 'bottom':
-        return { ...base, bottom: 0 };
-      default:
-        return { ...base, bottom: 0 };
+      case 'top': return { ...base, top: 0 };
+      case 'center': return { ...base, top: '50%', transform: 'translateY(-50%)' };
+      case 'bottom': return { ...base, bottom: 0 };
+      default: return { ...base, bottom: 0 };
     }
   };
 
   if (!image) {
     return (
-      <div className="image-editor">
-        <div className="editor-empty">
-          <span className="empty-icon">👆</span>
-          <p>Select an image from the sidebar to edit</p>
-        </div>
-      </div>
+      <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
+        <Box sx={{ textAlign: 'center' }}>
+          <Typography variant="h2" sx={{ mb: 2 }}>👆</Typography>
+          <Typography color="text.secondary">Select an image from the sidebar to edit</Typography>
+        </Box>
+      </Box>
     );
   }
 
   return (
-    <div className="image-editor">
-      <div className="editor-toolbar">
-        <div className="toolbar-left">
-          <h3>{image.name}</h3>
-        </div>
-        <div className="toolbar-right">
-          {mode === 'view' && (
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Toolbar */}
+      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="subtitle1" fontWeight={600} sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>
+          {image.name}
+        </Typography>
+        <Stack direction="row" spacing={1}>
+          {mode === 'view' ? (
             <>
-              <button
-                className={`toolbar-btn ${image.cropSettings ? 'has-edit' : ''}`}
+              <Button
+                size="small"
+                variant={image.cropSettings ? 'contained' : 'outlined'}
+                startIcon={<CropIcon />}
                 onClick={() => setMode('crop')}
               >
-                ✂️ Crop
-              </button>
-              <button
-                className={`toolbar-btn ${image.textOverlay ? 'has-edit' : ''}`}
+                Crop
+              </Button>
+              <Button
+                size="small"
+                variant={image.textOverlay ? 'contained' : 'outlined'}
+                startIcon={<TextIcon />}
                 onClick={() => setMode('text')}
               >
-                📝 Text
-              </button>
-              <button
-                className={`toolbar-btn ${hasCustomTiming ? 'has-edit' : ''}`}
+                Text
+              </Button>
+              <Button
+                size="small"
+                variant={hasCustomTiming ? 'contained' : 'outlined'}
+                color={hasCustomTiming ? 'warning' : 'primary'}
+                startIcon={<TimerIcon />}
                 onClick={() => setMode('timing')}
               >
-                ⏱️ Timing
-              </button>
+                Timing
+              </Button>
             </>
+          ) : (
+            <Button size="small" variant="outlined" color="error" startIcon={<CloseIcon />} onClick={() => setMode('view')}>
+              Cancel
+            </Button>
           )}
-          {mode !== 'view' && (
-            <button className="toolbar-btn cancel" onClick={() => setMode('view')}>
-              ✕ Cancel
-            </button>
-          )}
-        </div>
-      </div>
+        </Stack>
+      </Box>
 
-      <div className="editor-content">
+      {/* Content */}
+      <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+        {/* View Mode */}
         {mode === 'view' && (
-          <div className="view-mode">
-            <div className="image-preview-container">
-              <img 
-                src={image.croppedDataUrl || image.dataUrl} 
-                alt={image.name}
-                className="preview-image"
-              />
+          <Box>
+            <Box sx={{ position: 'relative', bgcolor: 'black', borderRadius: 2, overflow: 'hidden', minHeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Box component="img" src={image.croppedDataUrl || image.dataUrl} alt={image.name} sx={{ maxWidth: '100%', maxHeight: 400, objectFit: 'contain' }} />
               {image.textOverlay && (
-                <div className="preview-text-overlay" style={getTextPositionStyle()}>
-                  {image.textOverlay.text}
-                </div>
+                <Box sx={getTextPositionStyle()}>{image.textOverlay.text}</Box>
               )}
-            </div>
-            <div className="image-info">
+            </Box>
+            <Stack direction="row" spacing={1} sx={{ mt: 2 }} flexWrap="wrap" useFlexGap>
               {image.cropSettings && (
-                <span className="info-badge crop">✂️ Cropped ({image.cropSettings.aspectRatio})</span>
+                <Chip icon={<CropIcon />} label={`Cropped (${image.cropSettings.aspectRatio})`} color="success" size="small" />
               )}
               {image.textOverlay && (
-                <span className="info-badge text">📝 "{image.textOverlay.text.substring(0, 20)}{image.textOverlay.text.length > 20 ? '...' : ''}"</span>
+                <Chip icon={<TextIcon />} label={`"${image.textOverlay.text.substring(0, 15)}${image.textOverlay.text.length > 15 ? '...' : ''}"`} color="primary" size="small" />
               )}
               {hasCustomTiming && (
-                <span className="info-badge timing">
-                  ⏱️ {((image.duration ?? defaultDuration) / 1000).toFixed(1)}s · {image.transitionType ?? defaultTransition}
-                </span>
+                <Chip icon={<TimerIcon />} label={`${((image.duration ?? defaultDuration) / 1000).toFixed(1)}s · ${image.transitionType ?? defaultTransition}`} color="warning" size="small" />
               )}
-            </div>
-          </div>
+            </Stack>
+          </Box>
         )}
 
+        {/* Crop Mode */}
         {mode === 'crop' && (
-          <div className="crop-mode">
-            <div className="crop-canvas-container" ref={containerRef}>
+          <Stack spacing={2}>
+            <Paper ref={containerRef} sx={{ bgcolor: 'grey.100', borderRadius: 2, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 280, p: 1 }}>
               {!imageLoaded ? (
-                <div className="loading">Loading image...</div>
+                <CircularProgress />
               ) : (
-                <canvas
-                  ref={canvasRef}
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
-                />
+                <canvas ref={canvasRef} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} style={{ cursor: 'crosshair', display: 'block', maxWidth: '100%' }} />
               )}
-            </div>
+            </Paper>
             
-            <div className="crop-controls">
-              <div className="control-group">
-                <label>Aspect Ratio</label>
-                <div className="aspect-ratio-buttons">
-                  {ASPECT_RATIOS.map(ar => (
-                    <button
-                      key={ar.value}
-                      className={`ar-btn ${cropSettings.aspectRatio === ar.value ? 'active' : ''}`}
-                      onClick={() => handleAspectRatioChange(ar.value)}
-                    >
-                      {ar.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <Paper sx={{ p: 2 }}>
+              <Typography variant="caption" color="text.secondary" gutterBottom display="block">Aspect Ratio</Typography>
+              <ToggleButtonGroup value={cropSettings.aspectRatio} exclusive onChange={(_, v) => v && handleAspectRatioChange(v)} size="small" sx={{ mb: 2 }}>
+                {ASPECT_RATIOS.map(ar => (
+                  <ToggleButton key={ar.value} value={ar.value}>{ar.label}</ToggleButton>
+                ))}
+              </ToggleButtonGroup>
               
-              <div className="control-group">
-                <label>Dimensions</label>
-                <div className="dimension-info">
-                  <span>X: {Math.round(cropSettings.x * 100)}%</span>
-                  <span>Y: {Math.round(cropSettings.y * 100)}%</span>
-                  <span>W: {Math.round(cropSettings.width * 100)}%</span>
-                  <span>H: {Math.round(cropSettings.height * 100)}%</span>
-                </div>
-              </div>
+              <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                <Chip label={`X: ${Math.round(cropSettings.x * 100)}%`} size="small" variant="outlined" />
+                <Chip label={`Y: ${Math.round(cropSettings.y * 100)}%`} size="small" variant="outlined" />
+                <Chip label={`W: ${Math.round(cropSettings.width * 100)}%`} size="small" variant="outlined" />
+                <Chip label={`H: ${Math.round(cropSettings.height * 100)}%`} size="small" variant="outlined" />
+              </Stack>
               
-              <div className="control-actions">
-                <button className="action-btn btn-reset" onClick={handleResetCrop}>
-                  🔄 Reset
-                </button>
-                <button className="action-btn btn-apply-crop" onClick={handleSaveCrop}>
-                  ✂️ Apply Crop
-                </button>
-              </div>
-            </div>
-          </div>
+              <Stack direction="row" spacing={1} justifyContent="flex-end">
+                <Button startIcon={<ResetIcon />} onClick={handleResetCrop}>Reset</Button>
+                <Button variant="contained" color="success" startIcon={<CropIcon />} onClick={handleSaveCropClick}>Apply Crop</Button>
+              </Stack>
+            </Paper>
+          </Stack>
         )}
 
+        {/* Text Mode */}
         {mode === 'text' && (
-          <div className="text-mode">
-            <div className="text-preview-container">
-              <img src={image.croppedDataUrl || image.dataUrl} alt={image.name} />
+          <Stack spacing={2}>
+            <Box sx={{ position: 'relative', bgcolor: 'black', borderRadius: 2, overflow: 'hidden', minHeight: 200 }}>
+              <Box component="img" src={image.croppedDataUrl || image.dataUrl} alt={image.name} sx={{ width: '100%', maxHeight: 250, objectFit: 'contain' }} />
               {textOverlay.text && (
-                <div className="text-preview" style={getTextPositionStyle()}>
-                  {textOverlay.text}
-                </div>
+                <Box sx={getTextPositionStyle()}>{textOverlay.text}</Box>
               )}
-            </div>
+            </Box>
             
-            <div className="text-controls">
-              <div className="control-group">
-                <label>Text Content</label>
-                <textarea
-                  value={textOverlay.text}
-                  onChange={(e) => handleTextChange('text', e.target.value)}
-                  placeholder="Enter your text here..."
-                  rows={2}
-                />
-              </div>
+            <Paper sx={{ p: 2 }}>
+              <TextField fullWidth multiline rows={2} label="Text Content" value={textOverlay.text} onChange={(e) => handleTextChange('text', e.target.value)} placeholder="Enter your text here..." sx={{ mb: 2 }} />
               
-              <div className="control-row">
-                <div className="control-group">
-                  <label>Position</label>
-                  <div className="position-buttons">
-                    {(['top', 'center', 'bottom'] as TextPosition[]).map((pos) => (
-                      <button
-                        key={pos}
-                        className={`pos-btn ${textOverlay.position === pos ? 'active' : ''}`}
-                        onClick={() => handleTextChange('position', pos)}
-                      >
-                        {pos.charAt(0).toUpperCase() + pos.slice(1)}
-                      </button>
+              <Stack direction="row" spacing={2} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Position</Typography>
+                  <ToggleButtonGroup value={textOverlay.position} exclusive onChange={(_, v) => v && handleTextChange('position', v)} size="small">
+                    <ToggleButton value="top"><TopIcon /></ToggleButton>
+                    <ToggleButton value="center"><CenterIcon /></ToggleButton>
+                    <ToggleButton value="bottom"><BottomIcon /></ToggleButton>
+                  </ToggleButtonGroup>
+                </Box>
+                
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Align</Typography>
+                  <ToggleButtonGroup value={textOverlay.textAlign} exclusive onChange={(_, v) => v && handleTextChange('textAlign', v)} size="small">
+                    <ToggleButton value="left"><AlignLeftIcon /></ToggleButton>
+                    <ToggleButton value="center"><AlignCenterIcon /></ToggleButton>
+                    <ToggleButton value="right"><AlignRightIcon /></ToggleButton>
+                  </ToggleButtonGroup>
+                </Box>
+                
+                <Box sx={{ minWidth: 100 }}>
+                  <Typography variant="caption" color="text.secondary">Size: {textOverlay.fontSize}px</Typography>
+                  <Slider value={textOverlay.fontSize} onChange={(_, v) => handleTextChange('fontSize', v as number)} min={16} max={72} size="small" />
+                </Box>
+              </Stack>
+              
+              <Stack direction="row" spacing={2} sx={{ mb: 2 }} alignItems="center">
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Color</Typography>
+                  <input type="color" value={textOverlay.fontColor} onChange={(e) => handleTextChange('fontColor', e.target.value)} style={{ width: 40, height: 32, border: 'none', cursor: 'pointer' }} />
+                </Box>
+                
+                <FormControl size="small" sx={{ minWidth: 100 }}>
+                  <InputLabel>Weight</InputLabel>
+                  <Select value={textOverlay.fontWeight} label="Weight" onChange={(e) => handleTextChange('fontWeight', e.target.value as 'normal' | 'bold')}>
+                    <MenuItem value="normal">Normal</MenuItem>
+                    <MenuItem value="bold">Bold</MenuItem>
+                  </Select>
+                </FormControl>
+                
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Background</Typography>
+                  <Stack direction="row" spacing={0.5}>
+                    {BG_PRESETS.map((bg) => (
+                      <IconButton key={bg.value} size="small" onClick={() => handleTextChange('backgroundColor', bg.value)} sx={{ width: 28, height: 28, bgcolor: bg.color, border: textOverlay.backgroundColor === bg.value ? 2 : 1, borderColor: textOverlay.backgroundColor === bg.value ? 'primary.main' : 'divider', '&:hover': { bgcolor: bg.color } }}>
+                        {bg.value === 'transparent' && <Typography variant="caption">∅</Typography>}
+                      </IconButton>
                     ))}
-                  </div>
-                </div>
-                
-                <div className="control-group">
-                  <label>Font Size: {textOverlay.fontSize}px</label>
-                  <input
-                    type="range"
-                    min="16"
-                    max="72"
-                    value={textOverlay.fontSize}
-                    onChange={(e) => handleTextChange('fontSize', Number(e.target.value))}
-                  />
-                </div>
-              </div>
+                  </Stack>
+                </Box>
+              </Stack>
               
-              <div className="control-row">
-                <div className="control-group">
-                  <label>Text Color</label>
-                  <input
-                    type="color"
-                    value={textOverlay.fontColor}
-                    onChange={(e) => handleTextChange('fontColor', e.target.value)}
-                  />
-                </div>
-                
-                <div className="control-group">
-                  <label>Weight</label>
-                  <select
-                    value={textOverlay.fontWeight}
-                    onChange={(e) => handleTextChange('fontWeight', e.target.value as 'normal' | 'bold')}
-                  >
-                    <option value="normal">Normal</option>
-                    <option value="bold">Bold</option>
-                  </select>
-                </div>
-                
-                <div className="control-group">
-                  <label>Align</label>
-                  <div className="align-buttons">
-                    {(['left', 'center', 'right'] as const).map((align) => (
-                      <button
-                        key={align}
-                        className={`align-btn ${textOverlay.textAlign === align ? 'active' : ''}`}
-                        onClick={() => handleTextChange('textAlign', align)}
-                      >
-                        {align === 'left' ? '◀' : align === 'right' ? '▶' : '●'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="control-group">
-                <label>Background</label>
-                <div className="bg-presets">
-                  <button
-                    className={`bg-preset ${textOverlay.backgroundColor === 'rgba(0, 0, 0, 0.6)' ? 'active' : ''}`}
-                    style={{ background: 'rgba(0, 0, 0, 0.6)' }}
-                    onClick={() => handleTextChange('backgroundColor', 'rgba(0, 0, 0, 0.6)')}
-                    title="Dark"
-                  />
-                  <button
-                    className={`bg-preset ${textOverlay.backgroundColor === 'rgba(255, 255, 255, 0.8)' ? 'active' : ''}`}
-                    style={{ background: 'rgba(255, 255, 255, 0.8)' }}
-                    onClick={() => handleTextChange('backgroundColor', 'rgba(255, 255, 255, 0.8)')}
-                    title="Light"
-                  />
-                  <button
-                    className={`bg-preset ${textOverlay.backgroundColor === 'rgba(102, 126, 234, 0.8)' ? 'active' : ''}`}
-                    style={{ background: 'rgba(102, 126, 234, 0.8)' }}
-                    onClick={() => handleTextChange('backgroundColor', 'rgba(102, 126, 234, 0.8)')}
-                    title="Purple"
-                  />
-                  <button
-                    className={`bg-preset ${textOverlay.backgroundColor === 'rgba(239, 68, 68, 0.8)' ? 'active' : ''}`}
-                    style={{ background: 'rgba(239, 68, 68, 0.8)' }}
-                    onClick={() => handleTextChange('backgroundColor', 'rgba(239, 68, 68, 0.8)')}
-                    title="Red"
-                  />
-                  <button
-                    className={`bg-preset ${textOverlay.backgroundColor === 'rgba(72, 187, 120, 0.8)' ? 'active' : ''}`}
-                    style={{ background: 'rgba(72, 187, 120, 0.8)' }}
-                    onClick={() => handleTextChange('backgroundColor', 'rgba(72, 187, 120, 0.8)')}
-                    title="Green"
-                  />
-                  <button
-                    className={`bg-preset transparent ${textOverlay.backgroundColor === 'transparent' ? 'active' : ''}`}
-                    onClick={() => handleTextChange('backgroundColor', 'transparent')}
-                    title="None"
-                  >
-                    ∅
-                  </button>
-                </div>
-              </div>
-              
-              <div className="control-actions">
+              <Stack direction="row" spacing={1} justifyContent="flex-end">
                 {image.textOverlay && (
-                  <button className="action-btn btn-remove-text" onClick={handleRemoveText}>
-                    🗑️ Remove Text
-                  </button>
+                  <Button color="error" startIcon={<DeleteIcon />} onClick={handleRemoveText}>Remove</Button>
                 )}
-                <button className="action-btn btn-save-text" onClick={handleSaveText}>
-                  💾 Save Text
-                </button>
-              </div>
-            </div>
-          </div>
+                <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSaveText}>Save Text</Button>
+              </Stack>
+            </Paper>
+          </Stack>
         )}
 
+        {/* Timing Mode */}
         {mode === 'timing' && (
-          <div className="timing-mode">
-            <div className="timing-preview-container">
-              <img src={image.croppedDataUrl || image.dataUrl} alt={image.name} />
-              <div className="timing-badge">
-                <span className="timing-duration">{(timingDuration / 1000).toFixed(1)}s</span>
-                <span className="timing-transition">{timingTransition}</span>
-              </div>
-            </div>
+          <Stack spacing={2}>
+            <Box sx={{ position: 'relative', bgcolor: 'black', borderRadius: 2, overflow: 'hidden', minHeight: 200 }}>
+              <Box component="img" src={image.croppedDataUrl || image.dataUrl} alt={image.name} sx={{ width: '100%', maxHeight: 250, objectFit: 'contain' }} />
+              <Stack sx={{ position: 'absolute', top: 12, right: 12, alignItems: 'flex-end' }} spacing={0.5}>
+                <Chip label={`${(timingDuration / 1000).toFixed(1)}s`} color="primary" />
+                <Chip label={timingTransition} size="small" variant="outlined" sx={{ bgcolor: 'rgba(0,0,0,0.7)' }} />
+              </Stack>
+            </Box>
             
-            <div className="timing-controls">
-              <div className="control-group">
-                <label>Duration: {(timingDuration / 1000).toFixed(1)} seconds</label>
-                <input
-                  type="range"
-                  min="500"
-                  max="10000"
-                  step="100"
-                  value={timingDuration}
-                  onChange={(e) => setTimingDuration(Number(e.target.value))}
-                />
-                <div className="duration-presets">
-                  <button
-                    className={`preset-btn ${timingDuration === 1000 ? 'active' : ''}`}
-                    onClick={() => setTimingDuration(1000)}
-                  >
-                    1s
-                  </button>
-                  <button
-                    className={`preset-btn ${timingDuration === 2000 ? 'active' : ''}`}
-                    onClick={() => setTimingDuration(2000)}
-                  >
-                    2s
-                  </button>
-                  <button
-                    className={`preset-btn ${timingDuration === 3000 ? 'active' : ''}`}
-                    onClick={() => setTimingDuration(3000)}
-                  >
-                    3s
-                  </button>
-                  <button
-                    className={`preset-btn ${timingDuration === 5000 ? 'active' : ''}`}
-                    onClick={() => setTimingDuration(5000)}
-                  >
-                    5s
-                  </button>
-                </div>
-              </div>
-              
-              <div className="control-group">
-                <label>Transition Type</label>
-                <div className="transition-buttons">
-                  {TRANSITION_TYPES.map((t) => (
-                    <button
-                      key={t.value}
-                      className={`transition-btn ${timingTransition === t.value ? 'active' : ''}`}
-                      onClick={() => setTimingTransition(t.value)}
-                    >
-                      {t.label}
-                    </button>
+            <Paper sx={{ p: 2 }}>
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="caption" color="text.secondary">Duration: {(timingDuration / 1000).toFixed(1)} seconds</Typography>
+                <Slider value={timingDuration} onChange={(_, v) => setTimingDuration(v as number)} min={500} max={10000} step={100} />
+                <Stack direction="row" spacing={1}>
+                  {[1000, 2000, 3000, 5000].map((d) => (
+                    <Button key={d} size="small" variant={timingDuration === d ? 'contained' : 'outlined'} onClick={() => setTimingDuration(d)}>{d / 1000}s</Button>
                   ))}
-                </div>
-              </div>
+                </Stack>
+              </Box>
               
-              <div className="control-actions timing-actions">
-                <button className="action-btn btn-reset-timing" onClick={handleResetTiming}>
-                  🔄 Reset to Default
-                </button>
-                <button className="action-btn btn-copy-all" onClick={handleCopyToAll}>
-                  📋 Copy to All Images
-                </button>
-                <button className="action-btn btn-save-timing" onClick={handleSaveTiming}>
-                  💾 Save Timing
-                </button>
-              </div>
-            </div>
-          </div>
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="caption" color="text.secondary" gutterBottom display="block">Transition Type</Typography>
+                <ToggleButtonGroup value={timingTransition} exclusive onChange={(_, v) => v && setTimingTransition(v)} size="small">
+                  {TRANSITION_TYPES.map((t) => (
+                    <ToggleButton key={t.value} value={t.value}>{t.label}</ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+              </Box>
+              
+              <Stack direction="row" spacing={1} justifyContent="flex-end" flexWrap="wrap" useFlexGap>
+                <Button startIcon={<ResetIcon />} onClick={handleResetTiming}>Reset</Button>
+                <Button color="warning" startIcon={<CopyIcon />} onClick={handleCopyToAll}>Copy to All</Button>
+                <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSaveTiming}>Save Timing</Button>
+              </Stack>
+            </Paper>
+          </Stack>
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };

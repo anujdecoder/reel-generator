@@ -1,6 +1,22 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import {
+  Box,
+  Typography,
+  Button,
+  Slider,
+  Stack,
+  IconButton,
+  alpha,
+} from '@mui/material';
+import {
+  MusicNote as MusicNoteIcon,
+  Close as CloseIcon,
+  PlayArrow as PlayIcon,
+  Pause as PauseIcon,
+  VolumeUp as VolumeIcon,
+  DragIndicator as DragIcon,
+} from '@mui/icons-material';
 import type { MusicTrack } from '../types';
-import './MusicControls.css';
 
 interface MusicControlsProps {
   music: MusicTrack;
@@ -169,10 +185,11 @@ export const MusicControls: React.FC<MusicControlsProps> = ({
     }
   };
 
-  const handleVolumeChange = (value: number) => {
-    onMusicChange({ ...music, volume: value });
+  const handleVolumeChange = (_: Event, value: number | number[]) => {
+    const vol = value as number;
+    onMusicChange({ ...music, volume: vol });
     if (audioRef.current) {
-      audioRef.current.volume = value;
+      audioRef.current.volume = vol;
     }
   };
 
@@ -196,89 +213,120 @@ export const MusicControls: React.FC<MusicControlsProps> = ({
   const selectionWidthPercent = (videoDuration / music.duration) * 100;
 
   return (
-    <div className="music-controls-inline">
-      <div className="music-header">
-        <div className="music-title">
-          <span className="music-icon">🎵</span>
-          <span className="music-name">{music.name}</span>
-        </div>
-        <div className="music-meta">
-          <span className="music-info">
+    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }}>
+      {/* Music Info */}
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 180 }}>
+        <MusicNoteIcon color="primary" />
+        <Box>
+          <Typography variant="body2" fontWeight={600} sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {music.name}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
             Track: {formatTime(music.duration)} | Using: {formatTime(videoDuration)}
-          </span>
-        </div>
-      </div>
+          </Typography>
+        </Box>
+      </Stack>
 
-      <div className="music-selector">
-        <div className="selector-label">
-          <span>Drag to select: {formatTime(music.startTime)} - {formatTime(effectiveEndTime)}</span>
-        </div>
-        
-        {/* Visual track with draggable selection window */}
-        <div className="track-visualizer">
-          <div 
-            className="track-bar" 
-            ref={trackRef}
-            onClick={handleTrackClick}
+      {/* Track Selector */}
+      <Box sx={{ flex: 1 }}>
+        <Typography variant="caption" color="text.secondary">
+          Drag to select: {formatTime(music.startTime)} - {formatTime(effectiveEndTime)}
+        </Typography>
+        <Box
+          ref={trackRef}
+          onClick={handleTrackClick}
+          sx={{
+            position: 'relative',
+            height: 32,
+            bgcolor: 'action.hover',
+            borderRadius: 1,
+            cursor: 'pointer',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Selection Window */}
+          <Box
+            onMouseDown={handleMouseDown}
+            onClick={(e) => e.stopPropagation()}
+            sx={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              left: `${selectionStartPercent}%`,
+              width: `${Math.min(selectionWidthPercent, 100 - selectionStartPercent)}%`,
+              bgcolor: (theme) => alpha(theme.palette.primary.main, 0.3),
+              border: 2,
+              borderColor: 'primary.main',
+              borderRadius: 0.5,
+              cursor: isDragging ? 'grabbing' : 'grab',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: isDragging ? 'none' : 'left 0.1s ease',
+            }}
           >
-            {/* Selection window indicator */}
-            <div 
-              className={`selection-window ${isDragging ? 'dragging' : ''}`}
-              style={{
-                left: `${selectionStartPercent}%`,
-                width: `${Math.min(selectionWidthPercent, 100 - selectionStartPercent)}%`
-              }}
-              onMouseDown={handleMouseDown}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Drag handle indicators */}
-              <div className="drag-handle">⋮⋮</div>
-              
-              {/* Playback progress inside selection */}
-              {isPlaying && (
-                <div 
-                  className="play-progress"
-                  style={{ width: `${playProgress}%` }}
-                />
-              )}
-            </div>
-          </div>
-          <div className="track-labels">
-            <span>0:00</span>
-            <span>{formatTime(music.duration)}</span>
-          </div>
-        </div>
-      </div>
+            <DragIcon sx={{ color: 'primary.main', fontSize: 16 }} />
+            
+            {/* Play Progress */}
+            {isPlaying && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  bottom: 0,
+                  width: `${playProgress}%`,
+                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.5),
+                  borderRadius: 0.5,
+                }}
+              />
+            )}
+          </Box>
+        </Box>
+        <Stack direction="row" justifyContent="space-between">
+          <Typography variant="caption" color="text.secondary">0:00</Typography>
+          <Typography variant="caption" color="text.secondary">{formatTime(music.duration)}</Typography>
+        </Stack>
+      </Box>
 
-      <div className="music-volume">
-        <label>🔊 {Math.round(music.volume * 100)}%</label>
-        <input
-          type="range"
+      {/* Volume */}
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 120 }}>
+        <VolumeIcon fontSize="small" color="action" />
+        <Slider
+          size="small"
+          value={music.volume}
           min={0}
           max={1}
           step={0.05}
-          value={music.volume}
-          onChange={(e) => handleVolumeChange(Number(e.target.value))}
+          onChange={handleVolumeChange}
+          sx={{ width: 80 }}
         />
-      </div>
+        <Typography variant="caption" sx={{ minWidth: 30 }}>
+          {Math.round(music.volume * 100)}%
+        </Typography>
+      </Stack>
 
-      <div className="music-actions">
-        <button className="action-btn btn-preview-music" onClick={handlePlayPause}>
-          {isPlaying ? '⏸ Pause' : '▶ Preview'}
-        </button>
+      {/* Actions */}
+      <Stack direction="row" spacing={1} alignItems="center">
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={isPlaying ? <PauseIcon /> : <PlayIcon />}
+          onClick={handlePlayPause}
+        >
+          {isPlaying ? 'Pause' : 'Preview'}
+        </Button>
         {isPlaying && (
-          <div className="playback-status">
-            <span className="current-time">{formatTime(currentTime)}</span>
-            <span className="time-separator">/</span>
-            <span className="end-time">{formatTime(effectiveEndTime)}</span>
-          </div>
+          <Typography variant="caption" color="text.secondary">
+            {formatTime(currentTime)} / {formatTime(effectiveEndTime)}
+          </Typography>
         )}
-        <button className="action-btn btn-remove-music" onClick={handleRemoveMusic}>
-          ✕ Remove
-        </button>
-      </div>
+        <IconButton size="small" color="error" onClick={handleRemoveMusic}>
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </Stack>
 
       <audio ref={audioRef} />
-    </div>
+    </Stack>
   );
 };

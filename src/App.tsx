@@ -1,9 +1,24 @@
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
+import {
+  Box,
+  Container,
+  Typography,
+  Button,
+  Chip,
+  CircularProgress,
+  Alert,
+  Stack,
+  Paper,
+} from '@mui/material';
+import {
+  MusicNote as MusicNoteIcon,
+  Movie as MovieIcon,
+  DeleteSweep as DeleteSweepIcon,
+} from '@mui/icons-material';
 import { ImageUpload, ImageSidebar, ImageEditor, MusicUpload, MusicControls, PreviewModal } from './components';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useImageStorage } from './hooks/useImageStorage';
 import type { ImageItem, ReelConfig, TextOverlay, CropSettings, MusicTrack, TransitionType } from './types';
-import './App.css';
 
 const DEFAULT_CONFIG: ReelConfig = {
   transitionDuration: 500,
@@ -136,135 +151,193 @@ function App() {
   }, [setConfig]);
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>🎬 Reel Generator</h1>
-        <p className="app-subtitle">Create stunning video reels from your images</p>
-      </header>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: 'background.default',
+      }}
+    >
+      {/* Header */}
+      <Box
+        component="header"
+        sx={{
+          py: 3,
+          textAlign: 'center',
+          borderBottom: 1,
+          borderColor: 'divider',
+        }}
+      >
+        <Typography variant="h4" component="h1" fontWeight="bold">
+          🎬 Reel Generator
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          Create stunning video reels from your images
+        </Typography>
+      </Box>
 
-      <main className="app-main">
-        {/* Show loading state */}
-        {isLoadingImages && (
-          <div className="loading-state">
-            <div className="loading-spinner">⏳</div>
-            <p>Loading your images...</p>
-          </div>
-        )}
+      {/* Main Content */}
+      <Box component="main" sx={{ flex: 1, py: 3 }}>
+        <Container maxWidth="xl">
+          {/* Loading State */}
+          {isLoadingImages && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8 }}>
+              <CircularProgress size={48} />
+              <Typography sx={{ mt: 2 }}>Loading your images...</Typography>
+            </Box>
+          )}
 
-        {/* Show storage error if any */}
-        {storageError && (
-          <div className="error-state">
-            <p>⚠️ {storageError}</p>
-          </div>
-        )}
+          {/* Storage Error */}
+          {storageError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {storageError}
+            </Alert>
+          )}
 
-        {!isLoadingImages && images.length === 0 ? (
-          /* No images - show upload screen */
-          <div className="upload-section">
-            <div className="section-header">
-              <h2>📤 Upload Your Images</h2>
-              <p>Select multiple images to create your video reel</p>
-            </div>
-            
-            <ImageUpload onImagesAdded={handleImagesAdded} />
-            
-            <div className="empty-state">
-              <p>👆 Upload at least 2 images to create a reel</p>
-            </div>
-          </div>
-        ) : !isLoadingImages ? (
-          /* Images exist - show the new 3-row layout */
-          <div className="editor-layout">
-            {/* Row 1: Action Buttons */}
-            <div className="action-bar">
-              <div className="action-bar-left">
-                <div className="upload-inline">
-                  <ImageUpload onImagesAdded={handleImagesAdded} />
-                </div>
-                <button 
-                  className="action-btn music-btn btn-music"
-                  onClick={() => setShowMusicUpload(!showMusicUpload)}
+          {!isLoadingImages && images.length === 0 ? (
+            /* No images - show upload screen */
+            <Paper sx={{ p: 4, textAlign: 'center', maxWidth: 600, mx: 'auto' }}>
+              <Typography variant="h5" gutterBottom>
+                📤 Upload Your Images
+              </Typography>
+              <Typography color="text.secondary" sx={{ mb: 3 }}>
+                Select multiple images to create your video reel
+              </Typography>
+              
+              <ImageUpload onImagesAdded={handleImagesAdded} variant="dropzone" />
+              
+              <Typography color="text.secondary" sx={{ mt: 3 }}>
+                👆 Upload at least 2 images to create a reel
+              </Typography>
+            </Paper>
+          ) : !isLoadingImages ? (
+            /* Images exist - show the editor layout */
+            <Stack spacing={2}>
+              {/* Action Bar */}
+              <Paper sx={{ p: 2 }}>
+                <Stack
+                  direction={{ xs: 'column', md: 'row' }}
+                  justifyContent="space-between"
+                  alignItems={{ xs: 'stretch', md: 'center' }}
+                  spacing={2}
                 >
-                  🎵 {config.music ? 'Change Music' : 'Add Music'}
-                </button>
-                <button 
-                  className="action-btn preview-btn btn-preview"
-                  onClick={() => setShowPreview(true)}
-                  disabled={images.length < 2}
-                >
-                  🎬 Preview & Generate
-                </button>
-              </div>
-              <div className="action-bar-right">
-                <span className="image-count">{images.length} image{images.length !== 1 ? 's' : ''}</span>
-                <button className="action-btn btn-clear" onClick={handleClearAll}>
-                  🗑️ Clear All
-                </button>
-              </div>
-            </div>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    <ImageUpload onImagesAdded={handleImagesAdded} />
+                    <Button
+                      variant="outlined"
+                      startIcon={<MusicNoteIcon />}
+                      onClick={() => setShowMusicUpload(!showMusicUpload)}
+                    >
+                      {config.music ? 'Change Music' : 'Add Music'}
+                    </Button>
+                    <Button
+                      variant="contained"
+                      startIcon={<MovieIcon />}
+                      onClick={() => setShowPreview(true)}
+                      disabled={images.length < 2}
+                    >
+                      Preview & Generate
+                    </Button>
+                  </Stack>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip
+                      label={`${images.length} image${images.length !== 1 ? 's' : ''}`}
+                      color="primary"
+                      variant="outlined"
+                    />
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      startIcon={<DeleteSweepIcon />}
+                      onClick={handleClearAll}
+                      size="small"
+                    >
+                      Clear All
+                    </Button>
+                  </Stack>
+                </Stack>
+              </Paper>
 
-            {/* Music Upload Dropdown */}
-            {showMusicUpload && !config.music && (
-              <div className="music-upload-row">
-                <MusicUpload
-                  music={config.music}
-                  videoDuration={videoDuration}
-                  onMusicChange={handleMusicChange}
-                />
-              </div>
-            )}
+              {/* Music Upload Dropdown */}
+              {showMusicUpload && !config.music && (
+                <Paper sx={{ p: 2 }}>
+                  <MusicUpload
+                    music={config.music}
+                    videoDuration={videoDuration}
+                    onMusicChange={handleMusicChange}
+                  />
+                </Paper>
+              )}
 
-            {/* Row 2: Music Controls (visible only if music is uploaded) */}
-            {config.music && (
-              <div className="music-row">
-                <MusicControls
-                  music={config.music}
-                  videoDuration={videoDuration}
-                  onMusicChange={handleMusicChange}
-                />
-              </div>
-            )}
+              {/* Music Controls */}
+              {config.music && (
+                <Paper sx={{ p: 2 }}>
+                  <MusicControls
+                    music={config.music}
+                    videoDuration={videoDuration}
+                    onMusicChange={handleMusicChange}
+                  />
+                </Paper>
+              )}
 
-            {/* Row 3: Two-column layout */}
-            <div className="editor-columns">
-              {/* Left column: Image Sidebar (30%) */}
-              <div className="sidebar-column">
-                <ImageSidebar
-                  images={images}
-                  selectedImageId={selectedImage?.id || null}
-                  onSelectImage={handleSelectImage}
-                  onReorder={handleReorderImages}
-                  onRemove={handleRemoveImage}
-                />
-              </div>
+              {/* Two-column layout */}
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', md: '300px 1fr' },
+                  gap: 2,
+                  minHeight: 500,
+                }}
+              >
+                {/* Left column: Image Sidebar */}
+                <Paper sx={{ overflow: 'hidden' }}>
+                  <ImageSidebar
+                    images={images}
+                    selectedImageId={selectedImage?.id || null}
+                    onSelectImage={handleSelectImage}
+                    onReorder={handleReorderImages}
+                    onRemove={handleRemoveImage}
+                  />
+                </Paper>
 
-              {/* Right column: Image Editor (70%) */}
-              <div className="editor-column">
-                <ImageEditor
-                  image={selectedImage}
-                  defaultDuration={config.imageDuration}
-                  defaultTransition={config.transitionType}
-                  onSaveTextOverlay={handleSaveTextOverlay}
-                  onSaveCrop={handleSaveCrop}
-                  onSaveTiming={handleSaveTiming}
-                  onCopyTimingToAll={handleCopyTimingToAll}
-                />
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </main>
+                {/* Right column: Image Editor */}
+                <Paper sx={{ overflow: 'hidden' }}>
+                  <ImageEditor
+                    image={selectedImage}
+                    defaultDuration={config.imageDuration}
+                    defaultTransition={config.transitionType}
+                    onSaveTextOverlay={handleSaveTextOverlay}
+                    onSaveCrop={handleSaveCrop}
+                    onSaveTiming={handleSaveTiming}
+                    onCopyTimingToAll={handleCopyTimingToAll}
+                  />
+                </Paper>
+              </Box>
+            </Stack>
+          ) : null}
+        </Container>
+      </Box>
 
-      <footer className="app-footer">
-        <p>
+      {/* Footer */}
+      <Box
+        component="footer"
+        sx={{
+          py: 2,
+          textAlign: 'center',
+          borderTop: 1,
+          borderColor: 'divider',
+        }}
+      >
+        <Typography variant="body2" color="text.secondary">
           {images.length === 0 
             ? 'Tip: Upload multiple images at once by selecting them all'
             : images.length < 2
             ? 'Tip: Add at least one more image to create a reel'
             : 'Tip: Click an image in the sidebar to crop or add text'
           }
-        </p>
-      </footer>
+        </Typography>
+      </Box>
 
       {/* Preview Modal */}
       {showPreview && (
@@ -278,7 +351,7 @@ function App() {
 
       {/* Hidden audio element for music playback */}
       <audio ref={audioRef} />
-    </div>
+    </Box>
   );
 }
 

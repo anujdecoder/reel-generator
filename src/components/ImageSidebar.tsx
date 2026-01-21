@@ -1,6 +1,21 @@
 import React from 'react';
+import {
+  Box,
+  Typography,
+  IconButton,
+  Stack,
+  alpha,
+} from '@mui/material';
+import {
+  KeyboardArrowUp as ArrowUpIcon,
+  KeyboardArrowDown as ArrowDownIcon,
+  Close as CloseIcon,
+  DragIndicator as DragIcon,
+  ContentCut as CropIcon,
+  TextFields as TextIcon,
+  Timer as TimerIcon,
+} from '@mui/icons-material';
 import type { ImageItem } from '../types';
-import './ImageSidebar.css';
 
 interface ImageSidebarProps {
   images: ImageItem[];
@@ -83,70 +98,181 @@ export const ImageSidebar: React.FC<ImageSidebarProps> = ({
   }
 
   return (
-    <div className="image-sidebar">
-      <div className="sidebar-header">
-        <h3>🖼️ Images ({images.length})</h3>
-        <p className="sidebar-hint">Drag to reorder</p>
-      </div>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Typography variant="subtitle1" fontWeight={600}>
+          🖼️ Images ({images.length})
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          Drag to reorder
+        </Typography>
+      </Box>
       
-      <div className="sidebar-list">
-        {images.map((image, index) => (
-          <div
-            key={image.id}
-            className={`sidebar-item ${selectedImageId === image.id ? 'selected' : ''} ${draggedIndex === index ? 'dragging' : ''} ${dragOverIndex === index ? 'drag-over' : ''}`}
-            draggable
-            onClick={() => onSelectImage(image)}
-            onDragStart={(e) => handleDragStart(e, index)}
-            onDragOver={(e) => handleDragOver(e, index)}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, index)}
-            onDragEnd={handleDragEnd}
-          >
-            <span className="sidebar-number">{index + 1}</span>
-            <div className="sidebar-image-wrapper">
-              <img src={image.croppedDataUrl || image.dataUrl} alt={image.name} />
-              {image.cropSettings && (
-                <span className="sidebar-crop-badge" title="Cropped">✂</span>
-              )}
-              {image.textOverlay && (
-                <span className="sidebar-text-badge" title={image.textOverlay.text}>T</span>
-              )}
-            </div>
-            <div className="sidebar-info">
-              <span className="sidebar-name">{image.name}</span>
-              {image.textOverlay && (
-                <span className="sidebar-text-preview">{image.textOverlay.text}</span>
-              )}
-            </div>
-            <div className="sidebar-actions">
-              <button
-                className="sidebar-move-btn"
-                onClick={(e) => { e.stopPropagation(); moveImage(index, 'up'); }}
-                disabled={index === 0}
-                title="Move up"
+      {/* List */}
+      <Box sx={{ flex: 1, overflow: 'auto', p: 1 }}>
+        <Stack spacing={1}>
+          {images.map((image, index) => {
+            const isSelected = selectedImageId === image.id;
+            const isDragging = draggedIndex === index;
+            const isDragOver = dragOverIndex === index;
+            
+            return (
+              <Box
+                key={image.id}
+                draggable
+                onClick={() => onSelectImage(image)}
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  p: 1,
+                  borderRadius: 1,
+                  cursor: 'pointer',
+                  bgcolor: isSelected 
+                    ? (theme) => alpha(theme.palette.primary.main, 0.15)
+                    : 'transparent',
+                  border: 2,
+                  borderColor: isSelected 
+                    ? 'primary.main' 
+                    : isDragOver 
+                    ? 'primary.light' 
+                    : 'transparent',
+                  opacity: isDragging ? 0.5 : 1,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
+                  },
+                }}
               >
-                ↑
-              </button>
-              <button
-                className="sidebar-move-btn"
-                onClick={(e) => { e.stopPropagation(); moveImage(index, 'down'); }}
-                disabled={index === images.length - 1}
-                title="Move down"
-              >
-                ↓
-              </button>
-              <button
-                className="sidebar-remove-btn"
-                onClick={(e) => { e.stopPropagation(); onRemove(image.id); }}
-                title="Remove"
-              >
-                ✕
-              </button>
-            </div>
-            <span className="sidebar-drag-icon">⋮⋮</span>
-          </div>
-        ))}
-      </div>
-    </div>
+                {/* Index Number */}
+                <Typography
+                  variant="caption"
+                  sx={{
+                    width: 20,
+                    height: 20,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '50%',
+                    bgcolor: 'action.hover',
+                    flexShrink: 0,
+                  }}
+                >
+                  {index + 1}
+                </Typography>
+                
+                {/* Thumbnail */}
+                <Box
+                  sx={{
+                    position: 'relative',
+                    width: 48,
+                    height: 48,
+                    borderRadius: 1,
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src={image.croppedDataUrl || image.dataUrl}
+                    alt={image.name}
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
+                  />
+                  {/* Badges */}
+                  <Stack
+                    direction="row"
+                    spacing={0.25}
+                    sx={{
+                      position: 'absolute',
+                      bottom: 2,
+                      right: 2,
+                    }}
+                  >
+                    {image.cropSettings && (
+                      <CropIcon sx={{ fontSize: 12, color: 'success.main' }} />
+                    )}
+                    {image.textOverlay && (
+                      <TextIcon sx={{ fontSize: 12, color: 'primary.main' }} />
+                    )}
+                    {(image.duration || image.transitionType) && (
+                      <TimerIcon sx={{ fontSize: 12, color: 'warning.main' }} />
+                    )}
+                  </Stack>
+                </Box>
+                
+                {/* Info */}
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {image.name}
+                  </Typography>
+                  {image.textOverlay && (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        display: 'block',
+                      }}
+                    >
+                      {image.textOverlay.text}
+                    </Typography>
+                  )}
+                </Box>
+                
+                {/* Actions */}
+                <Stack direction="row" spacing={0}>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => { e.stopPropagation(); moveImage(index, 'up'); }}
+                    disabled={index === 0}
+                    sx={{ p: 0.5 }}
+                  >
+                    <ArrowUpIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => { e.stopPropagation(); moveImage(index, 'down'); }}
+                    disabled={index === images.length - 1}
+                    sx={{ p: 0.5 }}
+                  >
+                    <ArrowDownIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => { e.stopPropagation(); onRemove(image.id); }}
+                    color="error"
+                    sx={{ p: 0.5 }}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+                
+                {/* Drag Handle */}
+                <DragIcon sx={{ color: 'text.disabled', cursor: 'grab' }} />
+              </Box>
+            );
+          })}
+        </Stack>
+      </Box>
+    </Box>
   );
 };
