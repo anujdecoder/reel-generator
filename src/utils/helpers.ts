@@ -22,16 +22,16 @@ export const formatFileSize = (bytes: number): string => {
 /**
  * Compress and resize an image file
  * @param file - The image file to compress
- * @param maxWidth - Maximum width (default 1920 for reel quality)
- * @param maxHeight - Maximum height (default 1920)
- * @param quality - JPEG quality 0-1 (default 0.8)
+ * @param maxWidth - Maximum width (default 2160 for 4K vertical video)
+ * @param maxHeight - Maximum height (default 3840 for 4K vertical video)
+ * @param quality - JPEG quality 0-1 (default 0.92 for high quality)
  * @returns Promise with compressed image as data URL
  */
 export const compressImage = (
   file: File,
-  maxWidth: number = 1920,
-  maxHeight: number = 1920,
-  quality: number = 0.8
+  maxWidth: number = 2160,
+  maxHeight: number = 3840,
+  quality: number = 0.92
 ): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -43,6 +43,7 @@ export const compressImage = (
         // Calculate new dimensions while maintaining aspect ratio
         let { width, height } = img;
         
+        // Only resize if image exceeds max dimensions
         if (width > maxWidth) {
           height = (height * maxWidth) / width;
           width = maxWidth;
@@ -52,6 +53,10 @@ export const compressImage = (
           width = (width * maxHeight) / height;
           height = maxHeight;
         }
+
+        // Round dimensions to avoid subpixel issues
+        width = Math.round(width);
+        height = Math.round(height);
 
         // Create canvas and draw resized image
         const canvas = document.createElement('canvas');
@@ -64,7 +69,7 @@ export const compressImage = (
           return;
         }
 
-        // Use better image smoothing
+        // Use highest quality image rendering
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         
@@ -92,6 +97,37 @@ export const compressImage = (
 
     reader.readAsDataURL(file);
   });
+};
+
+/**
+ * Compress image with specific quality preset
+ */
+export type ImageQualityPreset = 'storage' | 'preview' | 'maximum';
+
+export const compressImageWithPreset = (
+  file: File,
+  preset: ImageQualityPreset = 'storage'
+): Promise<string> => {
+  const presets: Record<ImageQualityPreset, { maxWidth: number; maxHeight: number; quality: number }> = {
+    preview: {
+      maxWidth: 1080,
+      maxHeight: 1920,
+      quality: 0.8,
+    },
+    storage: {
+      maxWidth: 2160,
+      maxHeight: 3840,
+      quality: 0.92,
+    },
+    maximum: {
+      maxWidth: 4320,
+      maxHeight: 7680,
+      quality: 0.95,
+    },
+  };
+
+  const settings = presets[preset];
+  return compressImage(file, settings.maxWidth, settings.maxHeight, settings.quality);
 };
 
 /**

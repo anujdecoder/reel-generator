@@ -50,7 +50,10 @@ export interface ReelConfig {
   transitionType: TransitionType;
   music?: MusicTrack;
   outputFormat: VideoFormat;
+  videoQuality: VideoQuality;
+  useDirectEncoding: boolean; // Use advanced FFmpeg encoding (bypasses MediaRecorder)
 }
 
 export type TransitionType = 'fade' | 'slide' | 'zoom' | 'none';
 export type VideoFormat = 'webm' | 'mp4';
+export type VideoQuality = 'standard' | 'high' | 'maximum';

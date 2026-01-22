@@ -12,15 +12,26 @@ import {
   Alert,
   LinearProgress,
   Chip,
+  Switch,
+  FormControlLabel,
+  Tooltip,
 } from '@mui/material';
 import {
   PlayArrow as PlayIcon,
   Pause as PauseIcon,
   Stop as StopIcon,
   Movie as MovieIcon,
+  HighQuality as HighQualityIcon,
 } from '@mui/icons-material';
-import type { ImageItem, ReelConfig, TransitionType, TextOverlay, VideoFormat } from '../types';
-import { convertWebmToMp4, isFFmpegSupported, getFFmpegSupportStatus } from '../utils/videoConverter';
+import type { ImageItem, ReelConfig, TransitionType, TextOverlay, VideoFormat, VideoQuality } from '../types';
+import { 
+  convertWebmToMp4, 
+  isFFmpegSupported, 
+  getFFmpegSupportStatus, 
+  generateVideoWithFFmpeg, 
+  isDirectFFmpegEncodingSupported,
+  QUALITY_PRESETS 
+} from '../utils/videoConverter';
 
 interface ReelPreviewProps {
   images: ImageItem[];
@@ -174,6 +185,10 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) { setIsGenerating(false); return; }
 
+    // Set high-quality canvas rendering
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
     canvas.width = 1080;
     canvas.height = 1920;
 
@@ -186,29 +201,78 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
       }))
     );
 
+    const videoQuality = config.videoQuality || 'high';
+    const useDirectEncoding = config.useDirectEncoding !== false;
+
     try {
-      setConversionStatus('Creating video...');
-      const webmBlob = await createWebMVideo(canvas, loadedImages, images, config, fps, setGenerationProgress);
-      
+      // Check if we should use direct FFmpeg encoding (best quality)
+      const canUseDirectEncoding = config.outputFormat === 'mp4' && 
+                                    ffmpegSupported && 
+                                    useDirectEncoding && 
+                                    isDirectFFmpegEncodingSupported();
+
       let finalBlob: Blob;
       let filename: string;
 
-      if (config.outputFormat === 'mp4' && ffmpegSupported) {
-        try {
-          setConversionStatus('Converting to MP4...');
-          setGenerationProgress(0);
-          finalBlob = await convertWebmToMp4(webmBlob, (progress) => {
+      if (canUseDirectEncoding) {
+        // Use advanced direct FFmpeg encoding for best quality
+        setConversionStatus('Generating high-quality video...');
+        console.log('[Video] Using direct FFmpeg encoding for best quality');
+
+        // Calculate timeline for frame rendering
+        const { timeline, totalDuration } = buildTimeline(images, config);
+        const totalFrames = Math.ceil(totalDuration / (1000 / fps));
+
+        // Prepare audio if available
+        let audioBlob: Blob | null = null;
+        if (config.music) {
+          const response = await fetch(config.music.dataUrl);
+          audioBlob = await response.blob();
+        }
+
+        // Create frame renderer function
+        const renderFrameFunc = (frameIndex: number) => {
+          const currentTime = frameIndex * (1000 / fps);
+          renderFrameAtTime(ctx, canvas, loadedImages, images, timeline, currentTime);
+        };
+
+        finalBlob = await generateVideoWithFFmpeg(
+          canvas,
+          renderFrameFunc,
+          totalFrames,
+          fps,
+          audioBlob,
+          config.music?.startTime || 0,
+          config.music?.volume || 1,
+          videoQuality,
+          (progress) => {
             setConversionStatus(progress.message);
             if (progress.phase === 'converting') setGenerationProgress(progress.progress);
-          });
-          filename = `reel-${Date.now()}.mp4`;
-        } catch {
+          }
+        );
+        filename = `reel-${Date.now()}.mp4`;
+      } else {
+        // Fallback to MediaRecorder method
+        setConversionStatus('Creating video...');
+        const webmBlob = await createWebMVideo(canvas, loadedImages, images, config, fps, setGenerationProgress, videoQuality);
+        
+        if (config.outputFormat === 'mp4' && ffmpegSupported) {
+          try {
+            setConversionStatus('Converting to MP4...');
+            setGenerationProgress(0);
+            finalBlob = await convertWebmToMp4(webmBlob, (progress) => {
+              setConversionStatus(progress.message);
+              if (progress.phase === 'converting') setGenerationProgress(progress.progress);
+            }, videoQuality);
+            filename = `reel-${Date.now()}.mp4`;
+          } catch {
+            finalBlob = webmBlob;
+            filename = `reel-${Date.now()}.webm`;
+          }
+        } else {
           finalBlob = webmBlob;
           filename = `reel-${Date.now()}.webm`;
         }
-      } else {
-        finalBlob = webmBlob;
-        filename = `reel-${Date.now()}.webm`;
       }
       
       const url = URL.createObjectURL(finalBlob);
@@ -221,7 +285,7 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error generating video:', error);
-      alert('Error generating video.');
+      alert('Error generating video. ' + (error instanceof Error ? error.message : ''));
     }
 
     setIsGenerating(false);
@@ -310,15 +374,60 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
           </Select>
         </FormControl>
 
+        <FormControl size="small">
+          <InputLabel>Video Quality</InputLabel>
+          <Select 
+            value={config.videoQuality || 'high'} 
+            label="Video Quality" 
+            onChange={(e) => onConfigChange({ ...config, videoQuality: e.target.value as VideoQuality })}
+          >
+            <MenuItem value="standard">
+              Standard ({QUALITY_PRESETS.standard.description})
+            </MenuItem>
+            <MenuItem value="high">
+              High ({QUALITY_PRESETS.high.description})
+            </MenuItem>
+            <MenuItem value="maximum">
+              Maximum ({QUALITY_PRESETS.maximum.description})
+            </MenuItem>
+          </Select>
+        </FormControl>
+
+        {config.outputFormat === 'mp4' && ffmpegSupported && (
+          <Tooltip title="Direct encoding generates frames and encodes them with FFmpeg for the highest quality. Disable for faster (but lower quality) MediaRecorder encoding.">
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={config.useDirectEncoding !== false}
+                  onChange={(e) => onConfigChange({ ...config, useDirectEncoding: e.target.checked })}
+                  color="primary"
+                />
+              }
+              label={
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <HighQualityIcon fontSize="small" />
+                  <Typography variant="body2">High-Quality Encoding</Typography>
+                </Stack>
+              }
+            />
+          </Tooltip>
+        )}
+
         {config.outputFormat === 'mp4' && !ffmpegSupported && (
           <Alert severity="warning" sx={{ py: 0 }}>{ffmpegStatus.message}</Alert>
         )}
         {config.outputFormat === 'mp4' && ffmpegSupported && (
-          <Alert severity="success" sx={{ py: 0 }}>MP4 export ready</Alert>
+          <Alert severity="success" sx={{ py: 0 }}>
+            {config.useDirectEncoding !== false 
+              ? '✓ High-quality MP4 export ready (direct encoding)' 
+              : '✓ MP4 export ready'}
+          </Alert>
         )}
 
         <Button variant="contained" size="large" startIcon={<MovieIcon />} onClick={generateVideo} disabled={images.length < 2 || isGenerating} fullWidth>
-          {isGenerating ? (conversionStatus || `Generating... ${generationProgress}%`) : `Generate ${config.outputFormat === 'mp4' && ffmpegSupported ? 'MP4' : 'Video'}`}
+          {isGenerating 
+            ? (conversionStatus || `Generating... ${generationProgress}%`) 
+            : `Generate ${config.outputFormat === 'mp4' && ffmpegSupported ? 'MP4' : 'Video'} (${(config.videoQuality || 'high').charAt(0).toUpperCase() + (config.videoQuality || 'high').slice(1)} Quality)`}
         </Button>
 
         {isGenerating && <LinearProgress variant="determinate" value={generationProgress} />}
@@ -333,6 +442,10 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
 
 // Helper functions
 function drawImageCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, canvasWidth: number, canvasHeight: number) {
+  // Enable high-quality image rendering
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  
   const imgRatio = img.width / img.height;
   const canvasRatio = canvasWidth / canvasHeight;
   let drawWidth, drawHeight, offsetX, offsetY;
@@ -418,25 +531,20 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lines.length > 0 ? lines : [''];
 }
 
-async function createWebMVideo(
-  canvas: HTMLCanvasElement,
-  loadedImages: HTMLImageElement[],
+// Timeline segment interface
+interface TimelineSegment {
+  startTime: number;
+  imageDuration: number;
+  transitionDuration: number;
+  transitionType: string;
+  imageIndex: number;
+}
+
+// Build timeline from images and config
+function buildTimeline(
   imageItems: ImageItem[],
-  config: ReelConfig,
-  fps: number,
-  onProgress: (progress: number) => void
-): Promise<Blob> {
-  const ctx = canvas.getContext('2d')!;
-  const frameDuration = 1000 / fps;
-  
-  interface TimelineSegment {
-    startTime: number;
-    imageDuration: number;
-    transitionDuration: number;
-    transitionType: string;
-    imageIndex: number;
-  }
-  
+  config: ReelConfig
+): { timeline: TimelineSegment[]; totalDuration: number } {
   const timeline: TimelineSegment[] = [];
   let currentTime = 0;
   
@@ -456,7 +564,136 @@ async function createWebMVideo(
     currentTime += duration + config.transitionDuration;
   }
   
-  const totalDuration = currentTime;
+  return { timeline, totalDuration: currentTime };
+}
+
+// Find segment at a given time
+function findSegment(timeline: TimelineSegment[], time: number): { segment: TimelineSegment; timeInSegment: number } | null {
+  for (const segment of timeline) {
+    const segmentEnd = segment.startTime + segment.imageDuration + segment.transitionDuration;
+    if (time >= segment.startTime && time < segmentEnd) {
+      return { segment, timeInSegment: time - segment.startTime };
+    }
+  }
+  return null;
+}
+
+// Render a single frame at a specific time
+function renderFrameAtTime(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  loadedImages: HTMLImageElement[],
+  imageItems: ImageItem[],
+  timeline: TimelineSegment[],
+  currentTime: number
+) {
+  // Enable high-quality rendering
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  
+  // Clear with black background
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const segmentInfo = findSegment(timeline, currentTime);
+  if (!segmentInfo) return;
+
+  const { segment, timeInSegment } = segmentInfo;
+  const imageIndex = segment.imageIndex;
+  const nextIndex = (imageIndex + 1) % loadedImages.length;
+  const currentImage = loadedImages[imageIndex];
+  const nextImage = loadedImages[nextIndex];
+
+  if (timeInSegment < segment.imageDuration) {
+    // Display current image
+    drawImageCover(ctx, currentImage, canvas.width, canvas.height);
+    if (imageItems[imageIndex].textOverlay) {
+      drawTextOverlay(ctx, imageItems[imageIndex].textOverlay!, canvas.width, canvas.height);
+    }
+  } else {
+    // Transition phase
+    const transitionProgress = (timeInSegment - segment.imageDuration) / segment.transitionDuration;
+
+    switch (segment.transitionType) {
+      case 'fade':
+        drawImageCover(ctx, nextImage, canvas.width, canvas.height);
+        if (imageItems[nextIndex].textOverlay) {
+          drawTextOverlay(ctx, imageItems[nextIndex].textOverlay!, canvas.width, canvas.height);
+        }
+        ctx.globalAlpha = 1 - transitionProgress;
+        drawImageCover(ctx, currentImage, canvas.width, canvas.height);
+        if (imageItems[imageIndex].textOverlay) {
+          drawTextOverlay(ctx, imageItems[imageIndex].textOverlay!, canvas.width, canvas.height);
+        }
+        ctx.globalAlpha = 1;
+        break;
+      case 'slide':
+        const offset = transitionProgress * canvas.width;
+        ctx.save();
+        ctx.translate(-offset, 0);
+        drawImageCover(ctx, currentImage, canvas.width, canvas.height);
+        if (imageItems[imageIndex].textOverlay) {
+          drawTextOverlay(ctx, imageItems[imageIndex].textOverlay!, canvas.width, canvas.height);
+        }
+        ctx.restore();
+        ctx.save();
+        ctx.translate(canvas.width - offset, 0);
+        drawImageCover(ctx, nextImage, canvas.width, canvas.height);
+        if (imageItems[nextIndex].textOverlay) {
+          drawTextOverlay(ctx, imageItems[nextIndex].textOverlay!, canvas.width, canvas.height);
+        }
+        ctx.restore();
+        break;
+      case 'zoom':
+        const scale = 1 + transitionProgress * 0.5;
+        ctx.save();
+        ctx.globalAlpha = 1 - transitionProgress;
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.scale(scale, scale);
+        ctx.translate(-canvas.width / 2, -canvas.height / 2);
+        drawImageCover(ctx, currentImage, canvas.width, canvas.height);
+        if (imageItems[imageIndex].textOverlay) {
+          drawTextOverlay(ctx, imageItems[imageIndex].textOverlay!, canvas.width, canvas.height);
+        }
+        ctx.restore();
+        ctx.save();
+        ctx.globalAlpha = transitionProgress;
+        drawImageCover(ctx, nextImage, canvas.width, canvas.height);
+        if (imageItems[nextIndex].textOverlay) {
+          drawTextOverlay(ctx, imageItems[nextIndex].textOverlay!, canvas.width, canvas.height);
+        }
+        ctx.restore();
+        ctx.globalAlpha = 1;
+        break;
+      default:
+        // No transition - instant switch
+        const showNext = transitionProgress >= 0.5;
+        drawImageCover(ctx, showNext ? nextImage : currentImage, canvas.width, canvas.height);
+        const overlayData = showNext ? imageItems[nextIndex].textOverlay : imageItems[imageIndex].textOverlay;
+        if (overlayData) {
+          drawTextOverlay(ctx, overlayData, canvas.width, canvas.height);
+        }
+    }
+  }
+}
+
+async function createWebMVideo(
+  canvas: HTMLCanvasElement,
+  loadedImages: HTMLImageElement[],
+  imageItems: ImageItem[],
+  config: ReelConfig,
+  fps: number,
+  onProgress: (progress: number) => void,
+  videoQuality: VideoQuality = 'high'
+): Promise<Blob> {
+  const ctx = canvas.getContext('2d')!;
+  
+  // Enable high-quality rendering
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  
+  const frameDuration = 1000 / fps;
+  const { timeline, totalDuration } = buildTimeline(imageItems, config);
   const totalFrames = Math.ceil(totalDuration / frameDuration);
 
   let audioContext: AudioContext | null = null;
@@ -496,11 +733,19 @@ async function createWebMVideo(
     ? (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus') ? 'video/webm;codecs=vp9,opus' : 'video/webm')
     : (MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm');
 
-  const mediaRecorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: 5000000, audioBitsPerSecond: 128000 });
+  // Use quality presets for bitrate
+  const qualitySettings = QUALITY_PRESETS[videoQuality];
+  console.log(`[WebM] Using ${videoQuality} quality, bitrate: ${qualitySettings.bitrate}bps`);
+  
+  const mediaRecorder = new MediaRecorder(combinedStream, { 
+    mimeType, 
+    videoBitsPerSecond: qualitySettings.bitrate,
+    audioBitsPerSecond: 192000  // Higher audio bitrate
+  });
   const chunks: Blob[] = [];
   mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
 
-  const findSegment = (time: number): { segment: TimelineSegment; timeInSegment: number } | null => {
+  const findSegmentForTime = (time: number): { segment: TimelineSegment; timeInSegment: number } | null => {
     for (const segment of timeline) {
       const segmentEnd = segment.startTime + segment.imageDuration + segment.transitionDuration;
       if (time >= segment.startTime && time < segmentEnd) {
@@ -524,7 +769,7 @@ async function createWebMVideo(
       if (frame >= totalFrames) { mediaRecorder.stop(); return; }
 
       const currentTime = frame * frameDuration;
-      const segmentInfo = findSegment(currentTime);
+      const segmentInfo = findSegmentForTime(currentTime);
       
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, canvas.width, canvas.height);

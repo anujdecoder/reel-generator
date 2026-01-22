@@ -25,6 +25,8 @@ const DEFAULT_CONFIG: ReelConfig = {
   imageDuration: 2000,
   transitionType: 'fade',
   outputFormat: 'mp4',
+  videoQuality: 'high',
+  useDirectEncoding: true, // Use advanced FFmpeg encoding for best quality
 };
 
 function App() {

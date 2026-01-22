@@ -12,7 +12,8 @@ A React + TypeScript application that allows users to create stunning video reel
 - **Real-time Preview**: Preview your reel with images, text, and music synchronized
 - **Multiple Transition Effects**: Choose from Fade, Slide, Zoom, or None
 - **Customizable Timing**: Adjust image display duration and transition duration
-- **Video Generation**: Export as MP4 or WebM format
+- **High-Quality Video Generation**: Export as MP4 or WebM with multiple quality options
+- **Advanced FFmpeg Encoding**: Direct frame-by-frame encoding for maximum quality
 - **Persistent Storage**: Images stored in IndexedDB, settings in localStorage
 
 ## Getting Started
@@ -60,6 +61,33 @@ The built files will be in the `dist` directory.
    - Preview your reel with music
    - Configure settings (image duration, transition type, output format)
    - Download your video
+
+## Video Quality Settings
+
+The reel generator offers multiple quality levels to balance file size and visual quality:
+
+| Quality | Description | CRF | Video Bitrate | Best For |
+|---------|-------------|-----|---------------|----------|
+| **Standard** | Good quality, smaller files | 23 | 8 Mbps | Quick sharing, social media |
+| **High** | Excellent quality (default) | 18 | 15 Mbps | Most use cases |
+| **Maximum** | Best possible quality | 15 | 25 Mbps | Professional use, archival |
+
+### High-Quality Encoding Mode
+
+When MP4 export is available, you can enable **High-Quality Encoding** (enabled by default). This mode:
+
+1. **Generates frames as PNG** - Each video frame is rendered as a lossless PNG image
+2. **Encodes directly with FFmpeg** - Bypasses the browser's MediaRecorder for better quality control
+3. **Uses optimal encoding settings** - H.264 High Profile, proper color space handling
+
+This produces significantly sharper videos compared to the standard MediaRecorder approach, though it may take longer to generate.
+
+### Tips for Best Quality
+
+1. **Upload high-resolution images** - Images are stored up to 2160×3840 (4K vertical) at 92% quality
+2. **Use "High" or "Maximum" quality** - The default "High" setting works well for most cases
+3. **Enable High-Quality Encoding** - This is on by default for MP4 exports
+4. **Use MP4 format** - MP4 with H.264 generally produces better quality than WebM
 
 ## MP4 Export
 
@@ -140,7 +168,8 @@ reel-generator/
 
 - **Images**: Stored in IndexedDB (no size limit, typically 50-500MB available)
 - **Settings**: Stored in localStorage (5MB limit)
-- Images are automatically compressed to max 1920×1920 pixels at 85% quality
+- Images are stored at high quality: up to 2160×3840 pixels (4K vertical) at 92% JPEG quality
+- PNG images with transparency are preserved without lossy compression
 
 ## License
 
