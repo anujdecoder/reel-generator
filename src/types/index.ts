@@ -61,6 +61,41 @@ export type VideoQuality = 'standard' | 'high' | 'maximum';
 export type VideoDimensions = '1080x1920' | '1080x1080' | '1080x1350' | '1920x1080' | '720x1280' | '720x720';
 
 // Video dimension presets with metadata
+// JSON Config Import Types
+export interface ConfigImageItem {
+  url: string;
+  duration?: number; // ms, uses global if not set
+  transitionType?: TransitionType;
+  text?: {
+    content: string;
+    position?: TextPosition;
+    fontSize?: number;
+    fontColor?: string;
+    backgroundColor?: string;
+    fontWeight?: 'normal' | 'bold';
+    textAlign?: 'left' | 'center' | 'right';
+  };
+}
+
+export interface ConfigMusicItem {
+  url: string;
+  startTime?: number; // seconds
+  endTime?: number; // seconds
+  volume?: number; // 0-1
+}
+
+export interface ReelConfigJSON {
+  globalConfig?: {
+    transitionDuration?: number; // ms
+    imageDuration?: number; // ms
+    transitionType?: TransitionType;
+    videoDimensions?: VideoDimensions;
+    videoQuality?: VideoQuality;
+  };
+  images: ConfigImageItem[];
+  music?: ConfigMusicItem;
+}
+
 export const VIDEO_DIMENSION_PRESETS: Record<VideoDimensions, {
   width: number;
   height: number;

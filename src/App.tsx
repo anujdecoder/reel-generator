@@ -13,8 +13,9 @@ import {
   MusicNote as MusicNoteIcon,
   Movie as MovieIcon,
   DeleteSweep as DeleteSweepIcon,
+  Code as CodeIcon,
 } from '@mui/icons-material';
-import { ImageUpload, ImageSidebar, ImageEditor, MusicUpload, MusicControls, PreviewModal } from './components';
+import { ImageUpload, ImageSidebar, ImageEditor, MusicUpload, MusicControls, PreviewModal, ConfigImport } from './components';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useImageStorage } from './hooks/useImageStorage';
 import type { ImageItem, ReelConfig, TextOverlay, CropSettings, MusicTrack, TransitionType } from './types';
@@ -37,6 +38,7 @@ function App() {
   const [selectedImage, setSelectedImage] = useState<ImageItem | null>(null);
   const [showMusicUpload, setShowMusicUpload] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showConfigImport, setShowConfigImport] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   // Calculate video duration based on images and config
@@ -136,6 +138,58 @@ function App() {
     }
   }, [setConfig]);
 
+  const handleConfigImport = useCallback((
+    importedImages: ImageItem[], 
+    importedConfig: Partial<ReelConfig>, 
+    importedMusic?: MusicTrack
+  ) => {
+    // Add imported images
+    setImages(prev => [...prev, ...importedImages]);
+    
+    // Apply config settings and music in a single update to avoid race conditions
+    setConfig(prev => {
+      const newConfig = { ...prev };
+      
+      // Apply imported config settings
+      if (importedConfig.transitionDuration !== undefined) {
+        newConfig.transitionDuration = importedConfig.transitionDuration;
+      }
+      if (importedConfig.imageDuration !== undefined) {
+        newConfig.imageDuration = importedConfig.imageDuration;
+      }
+      if (importedConfig.transitionType !== undefined) {
+        newConfig.transitionType = importedConfig.transitionType;
+      }
+      if (importedConfig.videoDimensions !== undefined) {
+        newConfig.videoDimensions = importedConfig.videoDimensions;
+      }
+      if (importedConfig.videoQuality !== undefined) {
+        newConfig.videoQuality = importedConfig.videoQuality;
+      }
+      
+      // Apply music if provided
+      if (importedMusic) {
+        newConfig.music = importedMusic;
+      }
+      
+      return newConfig;
+    });
+    
+    // Set up audio element if music was provided
+    if (importedMusic && audioRef.current) {
+      audioRef.current.src = importedMusic.dataUrl;
+      audioRef.current.volume = importedMusic.volume;
+      audioRef.current.load();
+    }
+    
+    // Select first imported image
+    if (importedImages.length > 0) {
+      setSelectedImage(importedImages[0]);
+    }
+    
+    setShowConfigImport(false);
+  }, [setImages, setConfig]);
+
   return (
     <Box
       sx={{
@@ -174,9 +228,20 @@ function App() {
             
             <ImageUpload onImagesAdded={handleImagesAdded} variant="dropzone" />
             
-            <Typography color="text.secondary" sx={{ mt: 3 }}>
-              👆 Upload at least 2 images to create a reel
-            </Typography>
+            <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 3 }}>
+              <Typography color="text.secondary">
+                👆 Upload at least 2 images
+              </Typography>
+              <Typography color="text.secondary">or</Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<CodeIcon />}
+                onClick={() => setShowConfigImport(true)}
+              >
+                Import from JSON
+              </Button>
+            </Stack>
           </Paper>
         </Box>
       ) : !isLoadingImages ? (
@@ -193,6 +258,14 @@ function App() {
             >
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 <ImageUpload onImagesAdded={handleImagesAdded} />
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<CodeIcon />}
+                  onClick={() => setShowConfigImport(true)}
+                >
+                  Import JSON
+                </Button>
                 <Button
                   variant="outlined"
                   size="small"
@@ -300,6 +373,13 @@ function App() {
           onClose={() => setShowPreview(false)}
         />
       )}
+
+      {/* Config Import Modal */}
+      <ConfigImport
+        open={showConfigImport}
+        onClose={() => setShowConfigImport(false)}
+        onImport={handleConfigImport}
+      />
 
       {/* Hidden audio element for music playback */}
       <audio ref={audioRef} />

@@ -1,0 +1,81 @@
+{
+  "globalConfig": {
+    "transitionDuration": 500,
+    "imageDuration": 3000,
+    "transitionType": "slide",
+    "videoDimensions": "1080x1920",
+    "videoQuality": "high"
+  },
+  "images": [
+    {
+      "url": "https://picsum.photos/1080/1920?random=1",
+      "duration": 3500,
+      "transitionType": "slide",
+      "text": {
+        "content": "Welcome to Our Story",
+        "position": "bottom",
+        "fontSize": 48,
+        "fontColor": "#ffffff",
+        "backgroundColor": "rgba(0, 0, 0, 0.7)",
+        "fontWeight": "bold",
+        "textAlign": "center"
+      }
+    },
+    {
+      "url": "https://picsum.photos/1080/1920?random=2",
+      "duration": 3000,
+      "transitionType": "fade",
+      "text": {
+        "content": "Adventure Awaits",
+        "position": "center",
+        "fontSize": 56,
+        "fontColor": "#ffdd00",
+        "backgroundColor": "rgba(0, 0, 0, 0.5)",
+        "fontWeight": "bold",
+        "textAlign": "center"
+      }
+    },
+    {
+      "url": "https://picsum.photos/1080/1920?random=3",
+      "duration": 2500,
+      "transitionType": "zoom",
+      "text": {
+        "content": "Discover New Places",
+        "position": "top",
+        "fontSize": 40,
+        "fontColor": "#ffffff",
+        "backgroundColor": "rgba(102, 126, 234, 0.8)",
+        "fontWeight": "bold",
+        "textAlign": "center"
+      }
+    },
+    {
+      "url": "https://picsum.photos/1080/1920?random=4",
+      "duration": 3000,
+      "transitionType": "slide",
+      "text": {
+        "content": "Create Memories",
+        "position": "bottom",
+        "fontSize": 44,
+        "fontColor": "#ffffff",
+        "backgroundColor": "rgba(239, 68, 68, 0.8)",
+        "fontWeight": "bold",
+        "textAlign": "center"
+      }
+    },
+    {
+      "url": "https://picsum.photos/1080/1920?random=5",
+      "duration": 4000,
+      "transitionType": "fade",
+      "text": {
+        "content": "Thanks for Watching!\n\nFollow us @example",
+        "position": "center",
+        "fontSize": 42,
+        "fontColor": "#ffffff",
+        "backgroundColor": "rgba(0, 0, 0, 0.8)",
+        "fontWeight": "bold",
+        "textAlign": "center"
+      }
+    }
+  ]
+}

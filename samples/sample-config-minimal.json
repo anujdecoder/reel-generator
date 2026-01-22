@@ -1,0 +1,7 @@
+{
+  "images": [
+    { "url": "https://picsum.photos/1080/1920?random=20" },
+    { "url": "https://picsum.photos/1080/1920?random=21" },
+    { "url": "https://picsum.photos/1080/1920?random=22" }
+  ]
+}

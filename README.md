@@ -52,6 +52,8 @@ The built files will be in the `dist` directory.
 
 ## Usage
 
+### Manual Upload
+
 1. **Upload Images**: Click on the upload area or drag and drop images from your computer
 2. **Edit Images**: Click any image in the sidebar to select it, then use the toolbar to:
    - **Crop**: Click ✂️ Crop to adjust framing with various aspect ratios (9:16, 1:1, 4:5, 16:9)
@@ -62,6 +64,73 @@ The built files will be in the `dist` directory.
    - Preview your reel with music
    - Configure settings (image duration, transition type, output format)
    - Download your video
+
+### JSON Config Import
+
+You can also create reels programmatically using a JSON configuration file:
+
+1. **Click "Import JSON"** button
+2. **Paste your JSON config** (see schema below)
+3. **Click "Import & Load"** - images will be downloaded and settings applied automatically
+
+#### JSON Schema
+
+```json
+{
+  "globalConfig": {
+    "transitionDuration": 500,      // ms - transition duration between images
+    "imageDuration": 3000,          // ms - default display duration per image
+    "transitionType": "slide",      // fade | slide | zoom | none
+    "videoDimensions": "1080x1920", // output video size
+    "videoQuality": "high"          // standard | high | maximum
+  },
+  "images": [
+    {
+      "url": "https://example.com/image.jpg",  // Required: image URL
+      "duration": 3500,                         // Optional: override global duration
+      "transitionType": "fade",                 // Optional: override global transition
+      "text": {                                 // Optional: text overlay
+        "content": "Hello World!",              // Required if text is set
+        "position": "bottom",                   // top | center | bottom
+        "fontSize": 48,
+        "fontColor": "#ffffff",
+        "backgroundColor": "rgba(0, 0, 0, 0.6)",
+        "fontWeight": "bold",                   // normal | bold
+        "textAlign": "center"                   // left | center | right
+      }
+    }
+  ],
+  "music": {                          // Optional
+    "url": "https://example.com/song.mp3",
+    "startTime": 0,                   // seconds - where to start in the track
+    "endTime": 30,                    // seconds - where to end
+    "volume": 0.8                     // 0-1
+  }
+}
+```
+
+#### Sample Config Files
+
+Sample configuration files are available in the `samples/` directory:
+
+| File | Description |
+|------|-------------|
+| `sample-config.json` | Full-featured config with 5 images and text overlays |
+| `sample-config-with-music.json` | Square format (1:1) with background music |
+| `sample-config-minimal.json` | Minimal config - just image URLs |
+
+**Quick Start Example:**
+```json
+{
+  "images": [
+    { "url": "https://picsum.photos/1080/1920?random=1" },
+    { "url": "https://picsum.photos/1080/1920?random=2" },
+    { "url": "https://picsum.photos/1080/1920?random=3" }
+  ]
+}
+```
+
+**Note:** Images must be served with CORS headers that allow cross-origin requests, or be on the same origin.
 
 ## Video Dimensions
 
@@ -144,30 +213,41 @@ Cross-Origin-Embedder-Policy: require-corp
 
 ```
 reel-generator/
+├── samples/                        # Sample JSON config files
+│   ├── sample-config.json          # Full-featured example
+│   ├── sample-config-with-music.json # With background music
+│   └── sample-config-minimal.json  # Minimal example
 ├── src/
 │   ├── components/
 │   │   ├── ImageUpload.tsx       # Drag & drop image upload
 │   │   ├── ImageSidebar.tsx      # Sidebar with reorderable image list
 │   │   ├── ImageEditor.tsx       # Main editor with inline crop/text editing
-│   │   ├── ImageList.tsx         # Sortable image grid (legacy)
-│   │   ├── ImageCropEditor.tsx   # Visual crop editor modal
-│   │   ├── TextOverlayEditor.tsx # Text overlay customization modal
 │   │   ├── MusicUpload.tsx       # Audio upload component
 │   │   ├── MusicControls.tsx     # Inline music trimming controls
 │   │   ├── ReelPreview.tsx       # Preview & video generation
 │   │   ├── PreviewModal.tsx      # Preview modal with settings
+│   │   ├── ConfigImport.tsx      # JSON config import dialog
 │   │   └── index.ts              # Component exports
 │   ├── hooks/
 │   │   ├── useImageStorage.ts    # IndexedDB for images
 │   │   └── useLocalStorage.ts    # localStorage for config
 │   ├── types/
 │   │   └── index.ts              # TypeScript interfaces
+│   ├── test/
+│   │   ├── setup.ts              # Test setup with mocks
+│   │   ├── testUtils.ts          # Test helper functions
+│   │   ├── configImport.test.ts  # Config import tests
+│   │   ├── previewWindow.test.ts # Preview window tests
+│   │   ├── videoGeneration.test.ts # Video generation tests
+│   │   ├── videoRendering.test.ts  # Rendering tests
+│   │   └── videoIntegration.test.ts # Integration tests
 │   ├── utils/
 │   │   ├── helpers.ts            # Utility functions
 │   │   └── videoConverter.ts     # FFmpeg.wasm integration
 │   ├── App.tsx                   # Main application
-│   └── App.css                   # Application styles
+│   └── index.css                 # Application styles
 ├── vite.config.ts                # Vite config with headers
+├── vitest.config.ts              # Test configuration
 └── package.json
 ```
 
