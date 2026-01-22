@@ -3,7 +3,6 @@ import {
   Box,
   Typography,
   Button,
-  Slider,
   Select,
   MenuItem,
   FormControl,
@@ -23,7 +22,8 @@ import {
   Movie as MovieIcon,
   HighQuality as HighQualityIcon,
 } from '@mui/icons-material';
-import type { ImageItem, ReelConfig, TransitionType, TextOverlay, VideoFormat, VideoQuality } from '../types';
+import type { ImageItem, ReelConfig, TextOverlay, VideoFormat, VideoQuality, VideoDimensions } from '../types';
+import { VIDEO_DIMENSION_PRESETS } from '../types';
 import { 
   convertWebmToMp4, 
   isFFmpegSupported, 
@@ -53,14 +53,190 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [transitionProgress, setTransitionProgress] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [conversionStatus, setConversionStatus] = useState<string>('');
+  const [loadedImages, setLoadedImages] = useState<HTMLImageElement[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const timeoutRef = useRef<number | null>(null);
+  const animationRef = useRef<number | null>(null);
+  
+  // Get video dimensions from config
+  const videoDimensions = useMemo(() => {
+    const dims = config.videoDimensions || '1080x1920';
+    return VIDEO_DIMENSION_PRESETS[dims] || VIDEO_DIMENSION_PRESETS['1080x1920'];
+  }, [config.videoDimensions]);
   
   const ffmpegSupported = isFFmpegSupported();
   const ffmpegStatus = useMemo(() => getFFmpegSupportStatus(), []);
+
+  // Load images for canvas rendering
+  useEffect(() => {
+    if (images.length === 0) {
+      setLoadedImages([]);
+      return;
+    }
+
+    const loadImages = async () => {
+      const loaded = await Promise.all(
+        images.map((img) => new Promise<HTMLImageElement>((resolve) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = () => resolve(image); // Still resolve to maintain order
+          image.src = img.croppedDataUrl || img.dataUrl;
+        }))
+      );
+      setLoadedImages(loaded);
+    };
+
+    loadImages();
+  }, [images]);
+
+  // Render preview canvas frame
+  const renderPreviewFrame = useCallback(() => {
+    const canvas = previewCanvasRef.current;
+    if (!canvas || loadedImages.length === 0) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size to match video dimensions
+    canvas.width = videoDimensions.width;
+    canvas.height = videoDimensions.height;
+
+    // Enable high-quality rendering
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    // Clear with black background
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const currentImage = loadedImages[currentIndex];
+    if (!currentImage) return;
+
+    const isLastImage = currentIndex === loadedImages.length - 1;
+
+    // Check if we're in transition phase
+    if (isTransitioning && !isLastImage && transitionProgress > 0) {
+      const nextIndex = currentIndex + 1;
+      const nextImage = loadedImages[nextIndex];
+      const transitionType = images[currentIndex]?.transitionType ?? config.transitionType;
+
+      switch (transitionType) {
+        case 'fade': {
+          // Draw next image first
+          if (nextImage) {
+            drawImageCover(ctx, nextImage, canvas.width, canvas.height);
+            if (images[nextIndex]?.textOverlay) {
+              drawTextOverlay(ctx, images[nextIndex].textOverlay!, canvas.width, canvas.height);
+            }
+          }
+          // Draw current image with fading alpha
+          ctx.globalAlpha = 1 - transitionProgress;
+          drawImageCover(ctx, currentImage, canvas.width, canvas.height);
+          if (images[currentIndex]?.textOverlay) {
+            drawTextOverlay(ctx, images[currentIndex].textOverlay!, canvas.width, canvas.height);
+          }
+          ctx.globalAlpha = 1;
+          break;
+        }
+        case 'slide': {
+          const offset = transitionProgress * canvas.width;
+          ctx.save();
+          ctx.translate(-offset, 0);
+          drawImageCover(ctx, currentImage, canvas.width, canvas.height);
+          if (images[currentIndex]?.textOverlay) {
+            drawTextOverlay(ctx, images[currentIndex].textOverlay!, canvas.width, canvas.height);
+          }
+          ctx.restore();
+          if (nextImage) {
+            ctx.save();
+            ctx.translate(canvas.width - offset, 0);
+            drawImageCover(ctx, nextImage, canvas.width, canvas.height);
+            if (images[nextIndex]?.textOverlay) {
+              drawTextOverlay(ctx, images[nextIndex].textOverlay!, canvas.width, canvas.height);
+            }
+            ctx.restore();
+          }
+          break;
+        }
+        case 'zoom': {
+          const scale = 1 + transitionProgress * 0.5;
+          ctx.save();
+          ctx.globalAlpha = 1 - transitionProgress;
+          ctx.translate(canvas.width / 2, canvas.height / 2);
+          ctx.scale(scale, scale);
+          ctx.translate(-canvas.width / 2, -canvas.height / 2);
+          drawImageCover(ctx, currentImage, canvas.width, canvas.height);
+          if (images[currentIndex]?.textOverlay) {
+            drawTextOverlay(ctx, images[currentIndex].textOverlay!, canvas.width, canvas.height);
+          }
+          ctx.restore();
+          if (nextImage) {
+            ctx.save();
+            ctx.globalAlpha = transitionProgress;
+            drawImageCover(ctx, nextImage, canvas.width, canvas.height);
+            if (images[nextIndex]?.textOverlay) {
+              drawTextOverlay(ctx, images[nextIndex].textOverlay!, canvas.width, canvas.height);
+            }
+            ctx.restore();
+          }
+          ctx.globalAlpha = 1;
+          break;
+        }
+        default: {
+          // No transition - just show current
+          drawImageCover(ctx, currentImage, canvas.width, canvas.height);
+          if (images[currentIndex]?.textOverlay) {
+            drawTextOverlay(ctx, images[currentIndex].textOverlay!, canvas.width, canvas.height);
+          }
+        }
+      }
+    } else {
+      // Not transitioning - just show current image
+      drawImageCover(ctx, currentImage, canvas.width, canvas.height);
+      if (images[currentIndex]?.textOverlay) {
+        drawTextOverlay(ctx, images[currentIndex].textOverlay!, canvas.width, canvas.height);
+      }
+    }
+  }, [loadedImages, currentIndex, isTransitioning, transitionProgress, images, videoDimensions, config.transitionType]);
+
+  // Update preview canvas when state changes
+  useEffect(() => {
+    renderPreviewFrame();
+  }, [renderPreviewFrame]);
+
+  // Animate transitions
+  useEffect(() => {
+    if (!isTransitioning) {
+      setTransitionProgress(0);
+      return;
+    }
+
+    const startTime = Date.now();
+    const duration = config.transitionDuration;
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      setTransitionProgress(progress);
+
+      if (progress < 1) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [isTransitioning, config.transitionDuration]);
 
   const clearTimeouts = useCallback(() => {
     if (timeoutRef.current) {
@@ -73,26 +249,36 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
     return images[index]?.duration ?? config.imageDuration;
   }, [images, config.imageDuration]);
 
-  const getTransitionType = useCallback((index: number) => {
-    return images[index]?.transitionType ?? config.transitionType;
-  }, [images, config.transitionType]);
-
   const playNextFrame = useCallback(() => {
     if (!isPlaying || images.length === 0) return;
 
-    setIsTransitioning(true);
-    
-    timeoutRef.current = window.setTimeout(() => {
-      setIsTransitioning(false);
-      setCurrentIndex((prev) => {
-        const next = (prev + 1) % images.length;
+    setCurrentIndex((prev) => {
+      const isLastImage = prev === images.length - 1;
+      
+      // If this is the last image, stop playing
+      if (isLastImage) {
+        setIsPlaying(false);
+        if (audioRef?.current) {
+          audioRef.current.pause();
+        }
+        return prev;
+      }
+
+      // Not the last image - transition to next
+      setIsTransitioning(true);
+      
+      timeoutRef.current = window.setTimeout(() => {
+        setIsTransitioning(false);
+        const next = prev + 1;
         timeoutRef.current = window.setTimeout(() => {
           playNextFrame();
         }, getImageDuration(next));
-        return next;
-      });
-    }, config.transitionDuration);
-  }, [isPlaying, images.length, config.transitionDuration, getImageDuration]);
+        setCurrentIndex(next);
+      }, config.transitionDuration);
+      
+      return prev;
+    });
+  }, [isPlaying, images.length, config.transitionDuration, getImageDuration, audioRef]);
 
   useEffect(() => {
     if (isPlaying && images.length > 0) {
@@ -138,43 +324,6 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
     }
   };
 
-  const getTransitionStyle = (): React.CSSProperties => {
-    if (!isTransitioning) return {};
-    const duration = config.transitionDuration / 1000;
-    const transitionType = getTransitionType(currentIndex);
-    
-    switch (transitionType) {
-      case 'fade': return { animation: `fadeOut ${duration}s ease-in-out` };
-      case 'slide': return { animation: `slideOut ${duration}s ease-in-out` };
-      case 'zoom': return { animation: `zoomOut ${duration}s ease-in-out` };
-      default: return {};
-    }
-  };
-
-  const getTextOverlayStyle = (overlay: TextOverlay): React.CSSProperties => {
-    const base: React.CSSProperties = {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      padding: '12px 16px',
-      fontSize: `${Math.max(12, overlay.fontSize * 0.4)}px`,
-      color: overlay.fontColor,
-      backgroundColor: overlay.backgroundColor,
-      fontWeight: overlay.fontWeight,
-      textAlign: overlay.textAlign,
-      wordWrap: 'break-word',
-      whiteSpace: 'pre-wrap',
-      lineHeight: 1.3,
-    };
-
-    switch (overlay.position) {
-      case 'top': return { ...base, top: 0 };
-      case 'center': return { ...base, top: '50%', transform: 'translateY(-50%)' };
-      case 'bottom': return { ...base, bottom: 0 };
-      default: return { ...base, bottom: 0 };
-    }
-  };
-
   const generateVideo = async () => {
     if (images.length === 0) return;
     setIsGenerating(true);
@@ -189,8 +338,9 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    canvas.width = 1080;
-    canvas.height = 1920;
+    // Use dimensions from config
+    canvas.width = videoDimensions.width;
+    canvas.height = videoDimensions.height;
 
     const fps = 30;
     const loadedImages: HTMLImageElement[] = await Promise.all(
@@ -293,30 +443,87 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
     setConversionStatus('');
   };
 
-  // Preview Only Mode
+  // Preview Only Mode - Uses canvas to show exact video output
   if (showPreviewOnly) {
+    // Calculate scaled dimensions to fit in preview area while maintaining aspect ratio
+    const maxPreviewHeight = 450;
+    const maxPreviewWidth = 320;
+    const aspectRatio = videoDimensions.width / videoDimensions.height;
+    
+    let previewWidth: number;
+    let previewHeight: number;
+    
+    if (aspectRatio > maxPreviewWidth / maxPreviewHeight) {
+      // Width constrained
+      previewWidth = maxPreviewWidth;
+      previewHeight = maxPreviewWidth / aspectRatio;
+    } else {
+      // Height constrained
+      previewHeight = maxPreviewHeight;
+      previewWidth = maxPreviewHeight * aspectRatio;
+    }
+
     return (
       <Box>
-        <Box sx={{ position: 'relative', bgcolor: 'black', borderRadius: 2, overflow: 'hidden', aspectRatio: '9/16', maxHeight: 400 }}>
+        <Box 
+          sx={{ 
+            position: 'relative', 
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            bgcolor: '#1a1a1a',
+            borderRadius: 2,
+            p: 1,
+            minHeight: maxPreviewHeight + 20,
+          }}
+        >
           {images.length === 0 ? (
-            <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box sx={{ 
+              width: previewWidth, 
+              height: previewHeight, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              bgcolor: 'black',
+              borderRadius: 1,
+            }}>
               <Typography color="text.secondary">Add images to preview</Typography>
             </Box>
           ) : (
-            <>
-              <Box
-                component="img"
-                src={images[currentIndex]?.croppedDataUrl || images[currentIndex]?.dataUrl}
-                alt="Current frame"
-                sx={{ width: '100%', height: '100%', objectFit: 'cover', ...getTransitionStyle() }}
+            <Box sx={{ position: 'relative' }}>
+              <canvas
+                ref={previewCanvasRef}
+                style={{
+                  width: previewWidth,
+                  height: previewHeight,
+                  borderRadius: 4,
+                  display: 'block',
+                }}
               />
-              {images[currentIndex]?.textOverlay && (
-                <Box sx={getTextOverlayStyle(images[currentIndex].textOverlay)}>
-                  {images[currentIndex].textOverlay.text}
-                </Box>
-              )}
-              <Chip label={`${currentIndex + 1} / ${images.length}`} size="small" sx={{ position: 'absolute', bottom: 8, right: 8, bgcolor: 'rgba(0,0,0,0.7)' }} />
-            </>
+              <Chip 
+                label={`${currentIndex + 1} / ${images.length}`} 
+                size="small" 
+                sx={{ 
+                  position: 'absolute', 
+                  bottom: 8, 
+                  right: 8, 
+                  bgcolor: 'rgba(0,0,0,0.7)',
+                  color: 'white',
+                }} 
+              />
+              <Chip 
+                label={`${videoDimensions.label} (${videoDimensions.aspectRatio})`} 
+                size="small" 
+                sx={{ 
+                  position: 'absolute', 
+                  top: 8, 
+                  left: 8, 
+                  bgcolor: 'rgba(0,0,0,0.7)',
+                  color: 'white',
+                  fontSize: '0.7rem',
+                }} 
+              />
+            </Box>
           )}
         </Box>
 
@@ -336,33 +543,25 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
   if (!showPreviewPlayer) {
     return (
       <Stack spacing={2}>
-        <Box>
-          <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-            These apply to images without custom timing
-          </Typography>
-        </Box>
-
-        <Box>
-          <Typography variant="caption" color="text.secondary">
-            Default Image Duration: {(config.imageDuration / 1000).toFixed(1)}s
-          </Typography>
-          <Slider value={config.imageDuration} min={500} max={5000} step={100} onChange={(_, v) => onConfigChange({ ...config, imageDuration: v as number })} />
-        </Box>
-
-        <Box>
-          <Typography variant="caption" color="text.secondary">
-            Transition Duration: {(config.transitionDuration / 1000).toFixed(1)}s
-          </Typography>
-          <Slider value={config.transitionDuration} min={200} max={2000} step={100} onChange={(_, v) => onConfigChange({ ...config, transitionDuration: v as number })} />
-        </Box>
-
         <FormControl size="small">
-          <InputLabel>Transition Type</InputLabel>
-          <Select value={config.transitionType} label="Transition Type" onChange={(e) => onConfigChange({ ...config, transitionType: e.target.value as TransitionType })}>
-            <MenuItem value="fade">Fade</MenuItem>
-            <MenuItem value="slide">Slide</MenuItem>
-            <MenuItem value="zoom">Zoom</MenuItem>
-            <MenuItem value="none">None</MenuItem>
+          <InputLabel>Video Dimensions</InputLabel>
+          <Select 
+            value={config.videoDimensions || '1080x1920'} 
+            label="Video Dimensions" 
+            onChange={(e) => onConfigChange({ ...config, videoDimensions: e.target.value as VideoDimensions })}
+          >
+            {Object.entries(VIDEO_DIMENSION_PRESETS).map(([key, preset]) => (
+              <MenuItem key={key} value={key}>
+                <Stack>
+                  <Typography variant="body2">
+                    {preset.label} ({preset.aspectRatio})
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {preset.description}
+                  </Typography>
+                </Stack>
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
 
@@ -541,27 +740,33 @@ interface TimelineSegment {
 }
 
 // Build timeline from images and config
+// Last image has no transition - video ends after displaying it
 function buildTimeline(
   imageItems: ImageItem[],
   config: ReelConfig
 ): { timeline: TimelineSegment[]; totalDuration: number } {
   const timeline: TimelineSegment[] = [];
   let currentTime = 0;
+  const lastIndex = imageItems.length - 1;
   
   for (let i = 0; i < imageItems.length; i++) {
     const img = imageItems[i];
     const duration = img.duration ?? config.imageDuration;
     const transitionType = img.transitionType ?? config.transitionType;
     
+    // Last image has no transition
+    const isLastImage = i === lastIndex;
+    const transitionDuration = isLastImage ? 0 : config.transitionDuration;
+    
     timeline.push({
       startTime: currentTime,
       imageDuration: duration,
-      transitionDuration: config.transitionDuration,
-      transitionType,
+      transitionDuration,
+      transitionType: isLastImage ? 'none' : transitionType,
       imageIndex: i,
     });
     
-    currentTime += duration + config.transitionDuration;
+    currentTime += duration + transitionDuration;
   }
   
   return { timeline, totalDuration: currentTime };
@@ -600,79 +805,86 @@ function renderFrameAtTime(
 
   const { segment, timeInSegment } = segmentInfo;
   const imageIndex = segment.imageIndex;
-  const nextIndex = (imageIndex + 1) % loadedImages.length;
+  const isLastImage = imageIndex === loadedImages.length - 1;
   const currentImage = loadedImages[imageIndex];
-  const nextImage = loadedImages[nextIndex];
 
-  if (timeInSegment < segment.imageDuration) {
-    // Display current image
+  // If this is the last image or we're in the display phase, just show the current image
+  if (isLastImage || timeInSegment < segment.imageDuration) {
     drawImageCover(ctx, currentImage, canvas.width, canvas.height);
     if (imageItems[imageIndex].textOverlay) {
       drawTextOverlay(ctx, imageItems[imageIndex].textOverlay!, canvas.width, canvas.height);
     }
-  } else {
-    // Transition phase
-    const transitionProgress = (timeInSegment - segment.imageDuration) / segment.transitionDuration;
+    return;
+  }
 
-    switch (segment.transitionType) {
-      case 'fade':
-        drawImageCover(ctx, nextImage, canvas.width, canvas.height);
-        if (imageItems[nextIndex].textOverlay) {
-          drawTextOverlay(ctx, imageItems[nextIndex].textOverlay!, canvas.width, canvas.height);
-        }
-        ctx.globalAlpha = 1 - transitionProgress;
-        drawImageCover(ctx, currentImage, canvas.width, canvas.height);
-        if (imageItems[imageIndex].textOverlay) {
-          drawTextOverlay(ctx, imageItems[imageIndex].textOverlay!, canvas.width, canvas.height);
-        }
-        ctx.globalAlpha = 1;
-        break;
-      case 'slide':
-        const offset = transitionProgress * canvas.width;
-        ctx.save();
-        ctx.translate(-offset, 0);
-        drawImageCover(ctx, currentImage, canvas.width, canvas.height);
-        if (imageItems[imageIndex].textOverlay) {
-          drawTextOverlay(ctx, imageItems[imageIndex].textOverlay!, canvas.width, canvas.height);
-        }
-        ctx.restore();
-        ctx.save();
-        ctx.translate(canvas.width - offset, 0);
-        drawImageCover(ctx, nextImage, canvas.width, canvas.height);
-        if (imageItems[nextIndex].textOverlay) {
-          drawTextOverlay(ctx, imageItems[nextIndex].textOverlay!, canvas.width, canvas.height);
-        }
-        ctx.restore();
-        break;
-      case 'zoom':
-        const scale = 1 + transitionProgress * 0.5;
-        ctx.save();
-        ctx.globalAlpha = 1 - transitionProgress;
-        ctx.translate(canvas.width / 2, canvas.height / 2);
-        ctx.scale(scale, scale);
-        ctx.translate(-canvas.width / 2, -canvas.height / 2);
-        drawImageCover(ctx, currentImage, canvas.width, canvas.height);
-        if (imageItems[imageIndex].textOverlay) {
-          drawTextOverlay(ctx, imageItems[imageIndex].textOverlay!, canvas.width, canvas.height);
-        }
-        ctx.restore();
-        ctx.save();
-        ctx.globalAlpha = transitionProgress;
-        drawImageCover(ctx, nextImage, canvas.width, canvas.height);
-        if (imageItems[nextIndex].textOverlay) {
-          drawTextOverlay(ctx, imageItems[nextIndex].textOverlay!, canvas.width, canvas.height);
-        }
-        ctx.restore();
-        ctx.globalAlpha = 1;
-        break;
-      default:
-        // No transition - instant switch
-        const showNext = transitionProgress >= 0.5;
-        drawImageCover(ctx, showNext ? nextImage : currentImage, canvas.width, canvas.height);
-        const overlayData = showNext ? imageItems[nextIndex].textOverlay : imageItems[imageIndex].textOverlay;
-        if (overlayData) {
-          drawTextOverlay(ctx, overlayData, canvas.width, canvas.height);
-        }
+  // Transition phase (only for non-last images)
+  const nextIndex = imageIndex + 1;
+  const nextImage = loadedImages[nextIndex];
+  const transitionProgress = (timeInSegment - segment.imageDuration) / segment.transitionDuration;
+
+  switch (segment.transitionType) {
+    case 'fade': {
+      drawImageCover(ctx, nextImage, canvas.width, canvas.height);
+      if (imageItems[nextIndex].textOverlay) {
+        drawTextOverlay(ctx, imageItems[nextIndex].textOverlay!, canvas.width, canvas.height);
+      }
+      ctx.globalAlpha = 1 - transitionProgress;
+      drawImageCover(ctx, currentImage, canvas.width, canvas.height);
+      if (imageItems[imageIndex].textOverlay) {
+        drawTextOverlay(ctx, imageItems[imageIndex].textOverlay!, canvas.width, canvas.height);
+      }
+      ctx.globalAlpha = 1;
+      break;
+    }
+    case 'slide': {
+      const offset = transitionProgress * canvas.width;
+      ctx.save();
+      ctx.translate(-offset, 0);
+      drawImageCover(ctx, currentImage, canvas.width, canvas.height);
+      if (imageItems[imageIndex].textOverlay) {
+        drawTextOverlay(ctx, imageItems[imageIndex].textOverlay!, canvas.width, canvas.height);
+      }
+      ctx.restore();
+      ctx.save();
+      ctx.translate(canvas.width - offset, 0);
+      drawImageCover(ctx, nextImage, canvas.width, canvas.height);
+      if (imageItems[nextIndex].textOverlay) {
+        drawTextOverlay(ctx, imageItems[nextIndex].textOverlay!, canvas.width, canvas.height);
+      }
+      ctx.restore();
+      break;
+    }
+    case 'zoom': {
+      const scale = 1 + transitionProgress * 0.5;
+      ctx.save();
+      ctx.globalAlpha = 1 - transitionProgress;
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.scale(scale, scale);
+      ctx.translate(-canvas.width / 2, -canvas.height / 2);
+      drawImageCover(ctx, currentImage, canvas.width, canvas.height);
+      if (imageItems[imageIndex].textOverlay) {
+        drawTextOverlay(ctx, imageItems[imageIndex].textOverlay!, canvas.width, canvas.height);
+      }
+      ctx.restore();
+      ctx.save();
+      ctx.globalAlpha = transitionProgress;
+      drawImageCover(ctx, nextImage, canvas.width, canvas.height);
+      if (imageItems[nextIndex].textOverlay) {
+        drawTextOverlay(ctx, imageItems[nextIndex].textOverlay!, canvas.width, canvas.height);
+      }
+      ctx.restore();
+      ctx.globalAlpha = 1;
+      break;
+    }
+    default: {
+      // No transition - instant switch
+      const showNext = transitionProgress >= 0.5;
+      const imgToShow = showNext ? nextImage : currentImage;
+      const overlayData = showNext ? imageItems[nextIndex].textOverlay : imageItems[imageIndex].textOverlay;
+      drawImageCover(ctx, imgToShow, canvas.width, canvas.height);
+      if (overlayData) {
+        drawTextOverlay(ctx, overlayData, canvas.width, canvas.height);
+      }
     }
   }
 }
@@ -777,18 +989,23 @@ async function createWebMVideo(
       if (segmentInfo) {
         const { segment, timeInSegment } = segmentInfo;
         const imageIndex = segment.imageIndex;
-        const nextIndex = (imageIndex + 1) % loadedImages.length;
+        const isLastImage = imageIndex === loadedImages.length - 1;
         const currentImage = loadedImages[imageIndex];
-        const nextImage = loadedImages[nextIndex];
 
-        if (timeInSegment < segment.imageDuration) {
+        // If this is the last image or we're in the display phase, just show the current image
+        if (isLastImage || timeInSegment < segment.imageDuration) {
           drawImageCover(ctx, currentImage, canvas.width, canvas.height);
-          if (imageItems[imageIndex].textOverlay) drawTextOverlay(ctx, imageItems[imageIndex].textOverlay!, canvas.width, canvas.height);
+          if (imageItems[imageIndex].textOverlay) {
+            drawTextOverlay(ctx, imageItems[imageIndex].textOverlay!, canvas.width, canvas.height);
+          }
         } else {
+          // Transition phase (only for non-last images)
+          const nextIndex = imageIndex + 1;
+          const nextImage = loadedImages[nextIndex];
           const transitionProgress = (timeInSegment - segment.imageDuration) / segment.transitionDuration;
 
           switch (segment.transitionType) {
-            case 'fade':
+            case 'fade': {
               drawImageCover(ctx, nextImage, canvas.width, canvas.height);
               if (imageItems[nextIndex].textOverlay) drawTextOverlay(ctx, imageItems[nextIndex].textOverlay!, canvas.width, canvas.height);
               ctx.globalAlpha = 1 - transitionProgress;
@@ -796,7 +1013,8 @@ async function createWebMVideo(
               if (imageItems[imageIndex].textOverlay) drawTextOverlay(ctx, imageItems[imageIndex].textOverlay!, canvas.width, canvas.height);
               ctx.globalAlpha = 1;
               break;
-            case 'slide':
+            }
+            case 'slide': {
               const offset = transitionProgress * canvas.width;
               ctx.save(); ctx.translate(-offset, 0);
               drawImageCover(ctx, currentImage, canvas.width, canvas.height);
@@ -806,7 +1024,8 @@ async function createWebMVideo(
               if (imageItems[nextIndex].textOverlay) drawTextOverlay(ctx, imageItems[nextIndex].textOverlay!, canvas.width, canvas.height);
               ctx.restore();
               break;
-            case 'zoom':
+            }
+            case 'zoom': {
               const scale = 1 + transitionProgress * 0.5;
               ctx.save(); ctx.globalAlpha = 1 - transitionProgress;
               ctx.translate(canvas.width / 2, canvas.height / 2); ctx.scale(scale, scale); ctx.translate(-canvas.width / 2, -canvas.height / 2);
@@ -817,11 +1036,14 @@ async function createWebMVideo(
               if (imageItems[nextIndex].textOverlay) drawTextOverlay(ctx, imageItems[nextIndex].textOverlay!, canvas.width, canvas.height);
               ctx.restore(); ctx.globalAlpha = 1;
               break;
-            default:
+            }
+            default: {
               const showNext = transitionProgress >= 0.5;
-              drawImageCover(ctx, showNext ? nextImage : currentImage, canvas.width, canvas.height);
+              const imgToShow = showNext ? nextImage : currentImage;
               const overlayData = showNext ? imageItems[nextIndex].textOverlay : imageItems[imageIndex].textOverlay;
+              drawImageCover(ctx, imgToShow, canvas.width, canvas.height);
               if (overlayData) drawTextOverlay(ctx, overlayData, canvas.width, canvas.height);
+            }
           }
         }
       }

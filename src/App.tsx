@@ -27,6 +27,7 @@ const DEFAULT_CONFIG: ReelConfig = {
   outputFormat: 'mp4',
   videoQuality: 'high',
   useDirectEncoding: true, // Use advanced FFmpeg encoding for best quality
+  videoDimensions: '1080x1920', // Default to vertical HD for reels
 };
 
 function App() {

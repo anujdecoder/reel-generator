@@ -52,8 +52,62 @@ export interface ReelConfig {
   outputFormat: VideoFormat;
   videoQuality: VideoQuality;
   useDirectEncoding: boolean; // Use advanced FFmpeg encoding (bypasses MediaRecorder)
+  videoDimensions: VideoDimensions; // Output video dimensions
 }
 
 export type TransitionType = 'fade' | 'slide' | 'zoom' | 'none';
 export type VideoFormat = 'webm' | 'mp4';
 export type VideoQuality = 'standard' | 'high' | 'maximum';
+export type VideoDimensions = '1080x1920' | '1080x1080' | '1080x1350' | '1920x1080' | '720x1280' | '720x720';
+
+// Video dimension presets with metadata
+export const VIDEO_DIMENSION_PRESETS: Record<VideoDimensions, {
+  width: number;
+  height: number;
+  label: string;
+  aspectRatio: string;
+  description: string;
+}> = {
+  '1080x1920': {
+    width: 1080,
+    height: 1920,
+    label: '1080×1920',
+    aspectRatio: '9:16',
+    description: 'Vertical HD (Reels, TikTok, Stories)',
+  },
+  '1080x1350': {
+    width: 1080,
+    height: 1350,
+    label: '1080×1350',
+    aspectRatio: '4:5',
+    description: 'Portrait (Instagram Feed)',
+  },
+  '1080x1080': {
+    width: 1080,
+    height: 1080,
+    label: '1080×1080',
+    aspectRatio: '1:1',
+    description: 'Square (Instagram, Facebook)',
+  },
+  '1920x1080': {
+    width: 1920,
+    height: 1080,
+    label: '1920×1080',
+    aspectRatio: '16:9',
+    description: 'Landscape HD (YouTube, TV)',
+  },
+  '720x1280': {
+    width: 720,
+    height: 1280,
+    label: '720×1280',
+    aspectRatio: '9:16',
+    description: 'Vertical SD (Smaller file)',
+  },
+  '720x720': {
+    width: 720,
+    height: 720,
+    label: '720×720',
+    aspectRatio: '1:1',
+    description: 'Square SD (Smaller file)',
+  },
+};

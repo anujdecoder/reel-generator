@@ -9,7 +9,8 @@ A React + TypeScript application that allows users to create stunning video reel
 - **Image Cropping**: Crop and resize images with preset aspect ratios (9:16, 1:1, 4:5, 16:9)
 - **Text Overlays**: Add customizable text to each image (position, font size, color, background)
 - **Background Music**: Upload audio with trimming (start/end time) and volume control
-- **Real-time Preview**: Preview your reel with images, text, and music synchronized
+- **Real-time Preview**: Canvas-based preview that shows exactly what will be generated
+- **Multiple Video Dimensions**: Choose from various presets (1080×1920, 1080×1080, 1920×1080, etc.)
 - **Multiple Transition Effects**: Choose from Fade, Slide, Zoom, or None
 - **Customizable Timing**: Adjust image display duration and transition duration
 - **High-Quality Video Generation**: Export as MP4 or WebM with multiple quality options
@@ -61,6 +62,21 @@ The built files will be in the `dist` directory.
    - Preview your reel with music
    - Configure settings (image duration, transition type, output format)
    - Download your video
+
+## Video Dimensions
+
+Choose from multiple video dimension presets to match your target platform:
+
+| Dimensions | Aspect Ratio | Best For |
+|------------|--------------|----------|
+| **1080×1920** | 9:16 | Instagram Reels, TikTok, YouTube Shorts, Stories |
+| **1080×1350** | 4:5 | Instagram Feed (portrait) |
+| **1080×1080** | 1:1 | Instagram/Facebook Square posts |
+| **1920×1080** | 16:9 | YouTube, TV, Landscape videos |
+| **720×1280** | 9:16 | Vertical SD (smaller file size) |
+| **720×720** | 1:1 | Square SD (smaller file size) |
+
+The preview window shows the exact video output with the selected dimensions, so what you see is what you get!
 
 ## Video Quality Settings
 
