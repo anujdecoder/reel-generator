@@ -14,6 +14,7 @@ import {
   Switch,
   FormControlLabel,
   Tooltip,
+  Slider,
 } from '@mui/material';
 import {
   PlayArrow as PlayIcon,
@@ -54,6 +55,7 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [transitionProgress, setTransitionProgress] = useState(0);
+  const [playbackTime, setPlaybackTime] = useState(0); // Current playback time in ms
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [conversionStatus, setConversionStatus] = useState<string>('');
@@ -62,6 +64,8 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const timeoutRef = useRef<number | null>(null);
   const animationRef = useRef<number | null>(null);
+  const playbackStartRef = useRef<number>(0); // When playback started
+  const playbackOffsetRef = useRef<number>(0); // Time offset when paused/resumed
   
   // Get video dimensions from config
   const videoDimensions = useMemo(() => {
@@ -71,6 +75,27 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
   
   const ffmpegSupported = isFFmpegSupported();
   const ffmpegStatus = useMemo(() => getFFmpegSupportStatus(), []);
+
+  // Calculate total video duration
+  const totalDuration = useMemo(() => {
+    if (images.length === 0) return 0;
+    let total = 0;
+    for (let i = 0; i < images.length; i++) {
+      const duration = images[i]?.duration ?? config.imageDuration;
+      // Last image has no transition
+      const transitionDur = i === images.length - 1 ? 0 : config.transitionDuration;
+      total += duration + transitionDur;
+    }
+    return total;
+  }, [images, config.imageDuration, config.transitionDuration]);
+
+  // Format time as mm:ss
+  const formatTime = (ms: number): string => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
 
   // Load images for canvas rendering
   useEffect(() => {
@@ -258,6 +283,9 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
       // If this is the last image, stop playing
       if (isLastImage) {
         setIsPlaying(false);
+        // Save the final playback time
+        playbackOffsetRef.current = totalDuration;
+        setPlaybackTime(totalDuration);
         if (audioRef?.current) {
           audioRef.current.pause();
         }
@@ -278,7 +306,7 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
       
       return prev;
     });
-  }, [isPlaying, images.length, config.transitionDuration, getImageDuration, audioRef]);
+  }, [isPlaying, images.length, config.transitionDuration, getImageDuration, audioRef, totalDuration]);
 
   useEffect(() => {
     if (isPlaying && images.length > 0) {
@@ -289,14 +317,45 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
     return clearTimeouts;
   }, [isPlaying, images.length, playNextFrame, currentIndex, getImageDuration, clearTimeouts]);
 
+  // Track playback time while playing
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    playbackStartRef.current = Date.now();
+    
+    const updatePlaybackTime = () => {
+      const elapsed = Date.now() - playbackStartRef.current;
+      const currentTime = playbackOffsetRef.current + elapsed;
+      
+      if (currentTime >= totalDuration) {
+        setPlaybackTime(totalDuration);
+        return;
+      }
+      
+      setPlaybackTime(currentTime);
+      animationRef.current = requestAnimationFrame(updatePlaybackTime);
+    };
+
+    animationRef.current = requestAnimationFrame(updatePlaybackTime);
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [isPlaying, totalDuration]);
+
   const handlePlayPause = () => {
     if (isPlaying) {
+      // Pausing - save current position
+      playbackOffsetRef.current = playbackTime;
       setIsPlaying(false);
       clearTimeouts();
       if (audioRef?.current) {
         audioRef.current.pause();
       }
     } else {
+      // Playing - start from current position
       setIsPlaying(true);
       if (audioRef?.current && config.music) {
         const audio = audioRef.current;
@@ -305,7 +364,7 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
           audio.load();
         }
         audio.volume = config.music.volume;
-        audio.currentTime = config.music.startTime;
+        audio.currentTime = config.music.startTime + (playbackTime / 1000);
         setTimeout(() => {
           audio.play().catch(console.error);
         }, 50);
@@ -317,6 +376,8 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
     setIsPlaying(false);
     setCurrentIndex(0);
     setIsTransitioning(false);
+    setPlaybackTime(0);
+    playbackOffsetRef.current = 0;
     clearTimeouts();
     if (audioRef?.current && config.music) {
       audioRef.current.pause();
@@ -527,11 +588,38 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
           )}
         </Box>
 
+        {/* Time bar / Progress bar */}
+        {images.length > 0 && (
+          <Box sx={{ mt: 2, px: 1 }}>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Typography variant="caption" sx={{ minWidth: 40, color: 'text.secondary' }}>
+                {formatTime(playbackTime)}
+              </Typography>
+              <LinearProgress 
+                variant="determinate" 
+                value={totalDuration > 0 ? (playbackTime / totalDuration) * 100 : 0}
+                sx={{ 
+                  flex: 1, 
+                  height: 6, 
+                  borderRadius: 3,
+                  bgcolor: 'rgba(255,255,255,0.1)',
+                  '& .MuiLinearProgress-bar': {
+                    borderRadius: 3,
+                  }
+                }}
+              />
+              <Typography variant="caption" sx={{ minWidth: 40, color: 'text.secondary', textAlign: 'right' }}>
+                {formatTime(totalDuration)}
+              </Typography>
+            </Stack>
+          </Box>
+        )}
+
         <Stack direction="row" spacing={1} sx={{ mt: 2 }} justifyContent="center">
           <Button variant="contained" startIcon={isPlaying ? <PauseIcon /> : <PlayIcon />} onClick={handlePlayPause} disabled={images.length === 0}>
             {isPlaying ? 'Pause' : 'Play'}
           </Button>
-          <Button variant="outlined" startIcon={<StopIcon />} onClick={handleStop} disabled={images.length === 0 || (!isPlaying && currentIndex === 0)}>
+          <Button variant="outlined" startIcon={<StopIcon />} onClick={handleStop} disabled={images.length === 0 || (!isPlaying && currentIndex === 0 && playbackTime === 0)}>
             Stop
           </Button>
         </Stack>
@@ -543,6 +631,23 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
   if (!showPreviewPlayer) {
     return (
       <Stack spacing={2}>
+        {/* Transition Duration */}
+        <Box>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Transition Duration: {(config.transitionDuration / 1000).toFixed(1)}s
+          </Typography>
+          <Slider 
+            value={config.transitionDuration} 
+            min={100} 
+            max={2000} 
+            step={100} 
+            onChange={(_, v) => onConfigChange({ ...config, transitionDuration: v as number })}
+            valueLabelDisplay="auto"
+            valueLabelFormat={(v) => `${(v / 1000).toFixed(1)}s`}
+            size="small"
+          />
+        </Box>
+
         <FormControl size="small">
           <InputLabel>Video Dimensions</InputLabel>
           <Select 
