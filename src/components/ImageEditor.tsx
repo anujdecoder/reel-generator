@@ -1,9 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
   Button,
-  Chip,
   Slider,
   TextField,
   ToggleButton,
@@ -13,7 +12,6 @@ import {
   FormControl,
   InputLabel,
   Stack,
-  Paper,
   IconButton,
   CircularProgress,
 } from '@mui/material';
@@ -21,11 +19,7 @@ import {
   ContentCut as CropIcon,
   TextFields as TextIcon,
   Timer as TimerIcon,
-  Close as CloseIcon,
-  Refresh as ResetIcon,
-  Save as SaveIcon,
   Delete as DeleteIcon,
-  ContentCopy as CopyIcon,
   FormatAlignLeft as AlignLeftIcon,
   FormatAlignCenter as AlignCenterIcon,
   FormatAlignRight as AlignRightIcon,
@@ -42,10 +36,14 @@ interface ImageEditorProps {
   onSaveTextOverlay: (imageId: string, textOverlay: TextOverlay | undefined) => void;
   onSaveCrop: (imageId: string, cropSettings: CropSettings, croppedDataUrl: string) => void;
   onSaveTiming: (imageId: string, duration: number | undefined, transitionType: TransitionType | undefined) => void;
-  onCopyTimingToAll: (duration: number, transitionType: TransitionType) => void;
 }
 
-type EditorMode = 'view' | 'crop' | 'text' | 'timing';
+const TRANSITION_TYPES: { label: string; value: TransitionType }[] = [
+  { label: 'Slide', value: 'slide' },
+  { label: 'Fade', value: 'fade' },
+  { label: 'Zoom', value: 'zoom' },
+  { label: 'None', value: 'none' },
+];
 
 const DEFAULT_TEXT_OVERLAY: TextOverlay = {
   text: '',
@@ -74,13 +72,6 @@ const ASPECT_RATIOS: { label: string; value: AspectRatio; ratio: number | null }
   { label: 'Free', value: 'free', ratio: null },
 ];
 
-const TRANSITION_TYPES: { label: string; value: TransitionType }[] = [
-  { label: 'Fade', value: 'fade' },
-  { label: 'Slide', value: 'slide' },
-  { label: 'Zoom', value: 'zoom' },
-  { label: 'None', value: 'none' },
-];
-
 const BG_PRESETS = [
   { value: 'rgba(0, 0, 0, 0.6)', color: '#000000' },
   { value: 'rgba(255, 255, 255, 0.8)', color: '#ffffff' },
@@ -102,39 +93,38 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
   onSaveTextOverlay,
   onSaveCrop,
   onSaveTiming,
-  onCopyTimingToAll,
 }) => {
-  const [mode, setMode] = useState<EditorMode>('view');
   const [textOverlay, setTextOverlay] = useState<TextOverlay>(DEFAULT_TEXT_OVERLAY);
   const [cropSettings, setCropSettings] = useState<CropSettings>(DEFAULT_CROP);
   const [timingDuration, setTimingDuration] = useState<number>(defaultDuration);
-  const [timingTransition, setTimingTransition] = useState<TransitionType>(defaultTransition);
+  const [transitionType, setTransitionType] = useState<TransitionType>(defaultTransition);
+  const [isCropping, setIsCropping] = useState(false);
   
   // Crop editor state
-  const containerRef = useRef<HTMLDivElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [previewSize, setPreviewSize] = useState({ width: 0, height: 0 });
 
-  // Reset state when image changes
+  // Handle image change - load new image state
   useEffect(() => {
     if (image) {
       setTextOverlay(image.textOverlay || DEFAULT_TEXT_OVERLAY);
       setCropSettings(image.cropSettings || DEFAULT_CROP);
       setTimingDuration(image.duration ?? defaultDuration);
-      setTimingTransition(image.transitionType ?? defaultTransition);
-      setMode('view');
+      setTransitionType(image.transitionType ?? defaultTransition);
       setImageLoaded(false);
+      setIsCropping(false);
     }
   }, [image?.id, defaultDuration, defaultTransition]);
 
-  // Load the image for crop editor
+  // Load the image
   useEffect(() => {
-    if (!image || mode !== 'crop') return;
+    if (!image) return;
     
     const img = new Image();
     img.onload = () => {
@@ -142,27 +132,25 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
       setImageLoaded(true);
     };
     img.src = image.dataUrl;
-  }, [image?.dataUrl, mode]);
+  }, [image?.dataUrl]);
 
-  // Update container size for crop editor
+  // Update preview size
   useEffect(() => {
-    if (mode !== 'crop') return;
-    
     const updateSize = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        setContainerSize({ width: rect.width, height: rect.height });
+      if (previewContainerRef.current) {
+        const rect = previewContainerRef.current.getBoundingClientRect();
+        setPreviewSize({ width: rect.width, height: rect.height });
       }
     };
     
     updateSize();
     window.addEventListener('resize', updateSize);
     return () => window.removeEventListener('resize', updateSize);
-  }, [mode]);
+  }, []);
 
-  // Draw the crop canvas
+  // Draw the crop canvas when cropping
   useEffect(() => {
-    if (mode !== 'crop' || !imageLoaded || !imageRef.current || !canvasRef.current) return;
+    if (!isCropping || !imageLoaded || !imageRef.current || !canvasRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -170,21 +158,22 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
 
     const img = imageRef.current;
     
-    const maxWidth = containerSize.width || 500;
-    const maxHeight = 280;
+    const maxWidth = previewSize.width || 400;
+    const maxHeight = previewSize.height || 400;
     
-    const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+    const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
     const displayWidth = img.width * scale;
     const displayHeight = img.height * scale;
     
     canvas.width = displayWidth;
     canvas.height = displayHeight;
     
+    // Draw full image with overlay
     ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
-    
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.fillRect(0, 0, displayWidth, displayHeight);
     
+    // Draw crop area
     const cropX = cropSettings.x * displayWidth;
     const cropY = cropSettings.y * displayHeight;
     const cropW = cropSettings.width * displayWidth;
@@ -197,12 +186,14 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
     ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
     ctx.restore();
     
+    // Draw crop border
     ctx.strokeStyle = '#667eea';
     ctx.lineWidth = 2;
     ctx.strokeRect(cropX, cropY, cropW, cropH);
     
+    // Draw corner handles
     ctx.fillStyle = '#667eea';
-    const handleSize = 8;
+    const handleSize = 10;
     const handles = [
       { x: cropX, y: cropY },
       { x: cropX + cropW, y: cropY },
@@ -212,7 +203,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
     handles.forEach(h => {
       ctx.fillRect(h.x - handleSize/2, h.y - handleSize/2, handleSize, handleSize);
     });
-  }, [mode, imageLoaded, cropSettings, containerSize]);
+  }, [isCropping, imageLoaded, cropSettings, previewSize]);
 
   const getCanvasCoords = (e: React.MouseEvent): { x: number; y: number } => {
     const canvas = canvasRef.current;
@@ -226,8 +217,10 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (!isCropping) return;
+    
     const coords = getCanvasCoords(e);
-    const handleSize = 0.03;
+    const handleSize = 0.04;
     
     const corners = [
       { name: 'nw', x: cropSettings.x, y: cropSettings.y },
@@ -313,6 +306,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
   };
 
   const handleAspectRatioChange = (ar: AspectRatio) => {
+    setIsCropping(true);
     const ratio = getAspectRatioValue(ar);
     
     if (ratio) {
@@ -339,11 +333,12 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
     }
   };
 
-  const handleResetCrop = () => {
-    setCropSettings(DEFAULT_CROP);
+  const cancelCrop = () => {
+    setCropSettings(image?.cropSettings || DEFAULT_CROP);
+    setIsCropping(false);
   };
 
-  const handleSaveCropClick = () => {
+  const applyCrop = useCallback(() => {
     if (!image || !imageRef.current) return;
     
     const img = imageRef.current;
@@ -361,68 +356,72 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
     
     ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
     
-    const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.92);
     onSaveCrop(image.id, cropSettings, croppedDataUrl);
-    setMode('view');
-  };
+    setIsCropping(false);
+  }, [image, cropSettings, onSaveCrop]);
 
   const handleTextChange = <K extends keyof TextOverlay>(field: K, value: TextOverlay[K]) => {
-    setTextOverlay(prev => ({ ...prev, [field]: value }));
+    const newOverlay = { ...textOverlay, [field]: value };
+    setTextOverlay(newOverlay);
   };
 
-  const handleSaveText = () => {
-    if (!image || !textOverlay.text.trim()) return;
-    onSaveTextOverlay(image.id, textOverlay);
-    setMode('view');
-  };
+  // Save text immediately when text changes (debounced)
+  useEffect(() => {
+    if (!image) return;
+    
+    const timer = setTimeout(() => {
+      if (textOverlay.text.trim()) {
+        onSaveTextOverlay(image.id, textOverlay);
+      }
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [image, textOverlay, onSaveTextOverlay]);
 
   const handleRemoveText = () => {
     if (!image) return;
     onSaveTextOverlay(image.id, undefined);
     setTextOverlay(DEFAULT_TEXT_OVERLAY);
-    setMode('view');
   };
 
-  const handleSaveTiming = () => {
+  // Save timing when duration or transition changes (debounced)
+  useEffect(() => {
     if (!image) return;
-    const duration = timingDuration !== defaultDuration ? timingDuration : undefined;
-    const transition = timingTransition !== defaultTransition ? timingTransition : undefined;
-    onSaveTiming(image.id, duration, transition);
-    setMode('view');
-  };
-
-  const handleResetTiming = () => {
-    setTimingDuration(defaultDuration);
-    setTimingTransition(defaultTransition);
-  };
-
-  const handleCopyToAll = () => {
-    onCopyTimingToAll(timingDuration, timingTransition);
-    setMode('view');
-  };
-
-  const hasCustomTiming = image?.duration !== undefined || image?.transitionType !== undefined;
+    
+    const timer = setTimeout(() => {
+      const duration = timingDuration !== defaultDuration ? timingDuration : undefined;
+      const transition = transitionType !== defaultTransition ? transitionType : undefined;
+      onSaveTiming(image.id, duration, transition);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [image, timingDuration, transitionType, defaultDuration, defaultTransition, onSaveTiming]);
 
   const getTextPositionStyle = (): React.CSSProperties => {
     const base: React.CSSProperties = {
       position: 'absolute',
-      left: 0,
-      right: 0,
-      padding: '12px 16px',
-      fontSize: `${Math.max(12, textOverlay.fontSize * 0.4)}px`,
+      left: '50%',
+      transform: 'translateX(-50%)',
+      width: 'max-content',
+      maxWidth: '90%',
+      padding: '6px 12px',
+      fontSize: `${Math.max(10, textOverlay.fontSize * 0.3)}px`,
       color: textOverlay.fontColor,
       backgroundColor: textOverlay.backgroundColor,
       fontWeight: textOverlay.fontWeight,
       textAlign: textOverlay.textAlign,
       wordWrap: 'break-word',
       whiteSpace: 'pre-wrap',
+      pointerEvents: 'none',
+      borderRadius: '4px',
     };
 
     switch (textOverlay.position) {
-      case 'top': return { ...base, top: 0 };
-      case 'center': return { ...base, top: '50%', transform: 'translateY(-50%)' };
-      case 'bottom': return { ...base, bottom: 0 };
-      default: return { ...base, bottom: 0 };
+      case 'top': return { ...base, top: '5%' };
+      case 'center': return { ...base, top: '50%', transform: 'translate(-50%, -50%)' };
+      case 'bottom': return { ...base, bottom: '5%', transform: 'translateX(-50%)' };
+      default: return { ...base, bottom: '5%', transform: 'translateX(-50%)' };
     }
   };
 
@@ -438,221 +437,276 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
   }
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Toolbar */}
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="subtitle1" fontWeight={600} sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>
-          {image.name}
-        </Typography>
-        <Stack direction="row" spacing={1}>
-          {mode === 'view' ? (
-            <>
-              <Button
-                size="small"
-                variant={image.cropSettings ? 'contained' : 'outlined'}
-                startIcon={<CropIcon />}
-                onClick={() => setMode('crop')}
-              >
-                Crop
-              </Button>
-              <Button
-                size="small"
-                variant={image.textOverlay ? 'contained' : 'outlined'}
-                startIcon={<TextIcon />}
-                onClick={() => setMode('text')}
-              >
-                Text
-              </Button>
-              <Button
-                size="small"
-                variant={hasCustomTiming ? 'contained' : 'outlined'}
-                color={hasCustomTiming ? 'warning' : 'primary'}
-                startIcon={<TimerIcon />}
-                onClick={() => setMode('timing')}
-              >
-                Timing
-              </Button>
-            </>
-          ) : (
-            <Button size="small" variant="outlined" color="error" startIcon={<CloseIcon />} onClick={() => setMode('view')}>
-              Cancel
-            </Button>
-          )}
-        </Stack>
-      </Box>
-
-      {/* Content */}
-      <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-        {/* View Mode */}
-        {mode === 'view' && (
-          <Box>
-            <Box sx={{ position: 'relative', bgcolor: 'black', borderRadius: 2, overflow: 'hidden', minHeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Box component="img" src={image.croppedDataUrl || image.dataUrl} alt={image.name} sx={{ maxWidth: '100%', maxHeight: 400, objectFit: 'contain' }} />
-              {image.textOverlay && (
-                <Box sx={getTextPositionStyle()}>{image.textOverlay.text}</Box>
-              )}
-            </Box>
-            <Stack direction="row" spacing={1} sx={{ mt: 2 }} flexWrap="wrap" useFlexGap>
-              {image.cropSettings && (
-                <Chip icon={<CropIcon />} label={`Cropped (${image.cropSettings.aspectRatio})`} color="success" size="small" />
-              )}
-              {image.textOverlay && (
-                <Chip icon={<TextIcon />} label={`"${image.textOverlay.text.substring(0, 15)}${image.textOverlay.text.length > 15 ? '...' : ''}"`} color="primary" size="small" />
-              )}
-              {hasCustomTiming && (
-                <Chip icon={<TimerIcon />} label={`${((image.duration ?? defaultDuration) / 1000).toFixed(1)}s · ${image.transitionType ?? defaultTransition}`} color="warning" size="small" />
-              )}
-            </Stack>
+    <Box sx={{ height: '100%', display: 'flex', overflow: 'hidden' }}>
+      {/* Left: Image Preview */}
+      <Box 
+        ref={previewContainerRef}
+        sx={{ 
+          flex: 1, 
+          bgcolor: '#111', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          position: 'relative',
+          overflow: 'hidden',
+          minWidth: 0,
+          minHeight: 0,
+          p: 1,
+        }}
+      >
+        {!imageLoaded ? (
+          <CircularProgress />
+        ) : isCropping ? (
+          // Show crop canvas
+          <canvas 
+            ref={canvasRef} 
+            onMouseDown={handleMouseDown} 
+            onMouseMove={handleMouseMove} 
+            onMouseUp={handleMouseUp} 
+            onMouseLeave={handleMouseUp} 
+            style={{ 
+              cursor: isDragging ? 'move' : isResizing ? 'nwse-resize' : 'crosshair', 
+              display: 'block', 
+              maxWidth: '100%',
+              maxHeight: '100%',
+              objectFit: 'contain',
+            }} 
+          />
+        ) : (
+          // Show normal preview with text overlay
+          <Box sx={{ 
+            position: 'relative', 
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            height: '100%',
+          }}>
+            <Box 
+              component="img" 
+              src={image.croppedDataUrl || image.dataUrl} 
+              alt={image.name} 
+              sx={{ 
+                maxWidth: '100%', 
+                maxHeight: '100%', 
+                objectFit: 'contain',
+                display: 'block',
+              }} 
+            />
+            {textOverlay.text && (
+              <Box sx={getTextPositionStyle()}>{textOverlay.text}</Box>
+            )}
           </Box>
         )}
+      </Box>
 
-        {/* Crop Mode */}
-        {mode === 'crop' && (
-          <Stack spacing={2}>
-            <Paper ref={containerRef} sx={{ bgcolor: 'grey.100', borderRadius: 2, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 280, p: 1 }}>
-              {!imageLoaded ? (
-                <CircularProgress />
-              ) : (
-                <canvas ref={canvasRef} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} style={{ cursor: 'crosshair', display: 'block', maxWidth: '100%' }} />
-              )}
-            </Paper>
-            
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="caption" color="text.secondary" gutterBottom display="block">Aspect Ratio</Typography>
-              <ToggleButtonGroup value={cropSettings.aspectRatio} exclusive onChange={(_, v) => v && handleAspectRatioChange(v)} size="small" sx={{ mb: 2 }}>
-                {ASPECT_RATIOS.map(ar => (
-                  <ToggleButton key={ar.value} value={ar.value}>{ar.label}</ToggleButton>
-                ))}
+      {/* Right: Controls Panel */}
+      <Box 
+        sx={{ 
+          width: 260, 
+          borderLeft: 1, 
+          borderColor: 'divider', 
+          overflow: 'auto',
+          bgcolor: 'background.paper',
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* Image name */}
+        <Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+          <Typography variant="caption" fontWeight={600} noWrap>
+            {image.name}
+          </Typography>
+        </Box>
+
+        {/* Duration & Transition Section */}
+        <Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5 }}>
+            <TimerIcon sx={{ fontSize: 14 }} color="primary" />
+            <Typography variant="caption" fontWeight={500}>Duration</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+              {(timingDuration / 1000).toFixed(1)}s
+            </Typography>
+          </Stack>
+          <Slider 
+            value={timingDuration} 
+            onChange={(_, v) => setTimingDuration(v as number)} 
+            min={500} 
+            max={10000} 
+            step={100}
+            size="small"
+            sx={{ mb: 1 }}
+          />
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>Transition</Typography>
+          <ToggleButtonGroup 
+            value={transitionType} 
+            exclusive 
+            onChange={(_, v) => v && setTransitionType(v)} 
+            size="small"
+            fullWidth
+          >
+            {TRANSITION_TYPES.map(t => (
+              <ToggleButton key={t.value} value={t.value} sx={{ flex: 1, px: 0.5, py: 0.5, fontSize: 10 }}>
+                {t.label}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Box>
+
+        {/* Crop Section */}
+        <Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 1 }}>
+            <CropIcon sx={{ fontSize: 14 }} color={isCropping ? 'success' : 'primary'} />
+            <Typography variant="caption" fontWeight={500}>Crop</Typography>
+            {image.cropSettings && !isCropping && (
+              <Typography variant="caption" color="success.main" sx={{ ml: 'auto' }}>
+                {image.cropSettings.aspectRatio}
+              </Typography>
+            )}
+          </Stack>
+          
+          <ToggleButtonGroup 
+            value={isCropping ? cropSettings.aspectRatio : (image.cropSettings?.aspectRatio || null)}
+            exclusive 
+            onChange={(_, v) => v && handleAspectRatioChange(v)} 
+            size="small"
+            fullWidth
+          >
+            {ASPECT_RATIOS.slice(0, 4).map(ar => (
+              <ToggleButton key={ar.value} value={ar.value} sx={{ flex: 1, px: 0.5, py: 0.5, fontSize: 11 }}>
+                {ar.label}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+          
+          {isCropping && (
+            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+              <Button size="small" variant="outlined" onClick={cancelCrop} fullWidth sx={{ py: 0.5 }}>
+                Cancel
+              </Button>
+              <Button size="small" variant="contained" color="success" onClick={applyCrop} fullWidth sx={{ py: 0.5 }}>
+                Apply
+              </Button>
+            </Stack>
+          )}
+        </Box>
+
+        {/* Text Section */}
+        <Box sx={{ px: 1.5, py: 1, flex: 1, overflow: 'auto' }}>
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 1 }}>
+            <TextIcon sx={{ fontSize: 14 }} color={textOverlay.text ? 'primary' : 'action'} />
+            <Typography variant="caption" fontWeight={500}>Text Overlay</Typography>
+          </Stack>
+          
+          <TextField 
+            fullWidth 
+            multiline 
+            rows={2} 
+            size="small"
+            value={textOverlay.text} 
+            onChange={(e) => handleTextChange('text', e.target.value)} 
+            placeholder="Enter text..." 
+            sx={{ mb: 1, '& .MuiInputBase-input': { fontSize: 12 } }} 
+          />
+          
+          <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>Position</Typography>
+              <ToggleButtonGroup 
+                value={textOverlay.position} 
+                exclusive 
+                onChange={(_, v) => v && handleTextChange('position', v)} 
+                size="small"
+              >
+                <ToggleButton value="top" sx={{ p: 0.5 }}><TopIcon sx={{ fontSize: 14 }} /></ToggleButton>
+                <ToggleButton value="center" sx={{ p: 0.5 }}><CenterIcon sx={{ fontSize: 14 }} /></ToggleButton>
+                <ToggleButton value="bottom" sx={{ p: 0.5 }}><BottomIcon sx={{ fontSize: 14 }} /></ToggleButton>
               </ToggleButtonGroup>
-              
-              <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-                <Chip label={`X: ${Math.round(cropSettings.x * 100)}%`} size="small" variant="outlined" />
-                <Chip label={`Y: ${Math.round(cropSettings.y * 100)}%`} size="small" variant="outlined" />
-                <Chip label={`W: ${Math.round(cropSettings.width * 100)}%`} size="small" variant="outlined" />
-                <Chip label={`H: ${Math.round(cropSettings.height * 100)}%`} size="small" variant="outlined" />
-              </Stack>
-              
-              <Stack direction="row" spacing={1} justifyContent="flex-end">
-                <Button startIcon={<ResetIcon />} onClick={handleResetCrop}>Reset</Button>
-                <Button variant="contained" color="success" startIcon={<CropIcon />} onClick={handleSaveCropClick}>Apply Crop</Button>
-              </Stack>
-            </Paper>
-          </Stack>
-        )}
-
-        {/* Text Mode */}
-        {mode === 'text' && (
-          <Stack spacing={2}>
-            <Box sx={{ position: 'relative', bgcolor: 'black', borderRadius: 2, overflow: 'hidden', minHeight: 200 }}>
-              <Box component="img" src={image.croppedDataUrl || image.dataUrl} alt={image.name} sx={{ width: '100%', maxHeight: 250, objectFit: 'contain' }} />
-              {textOverlay.text && (
-                <Box sx={getTextPositionStyle()}>{textOverlay.text}</Box>
-              )}
             </Box>
             
-            <Paper sx={{ p: 2 }}>
-              <TextField fullWidth multiline rows={2} label="Text Content" value={textOverlay.text} onChange={(e) => handleTextChange('text', e.target.value)} placeholder="Enter your text here..." sx={{ mb: 2 }} />
-              
-              <Stack direction="row" spacing={2} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">Position</Typography>
-                  <ToggleButtonGroup value={textOverlay.position} exclusive onChange={(_, v) => v && handleTextChange('position', v)} size="small">
-                    <ToggleButton value="top"><TopIcon /></ToggleButton>
-                    <ToggleButton value="center"><CenterIcon /></ToggleButton>
-                    <ToggleButton value="bottom"><BottomIcon /></ToggleButton>
-                  </ToggleButtonGroup>
-                </Box>
-                
-                <Box>
-                  <Typography variant="caption" color="text.secondary">Align</Typography>
-                  <ToggleButtonGroup value={textOverlay.textAlign} exclusive onChange={(_, v) => v && handleTextChange('textAlign', v)} size="small">
-                    <ToggleButton value="left"><AlignLeftIcon /></ToggleButton>
-                    <ToggleButton value="center"><AlignCenterIcon /></ToggleButton>
-                    <ToggleButton value="right"><AlignRightIcon /></ToggleButton>
-                  </ToggleButtonGroup>
-                </Box>
-                
-                <Box sx={{ minWidth: 100 }}>
-                  <Typography variant="caption" color="text.secondary">Size: {textOverlay.fontSize}px</Typography>
-                  <Slider value={textOverlay.fontSize} onChange={(_, v) => handleTextChange('fontSize', v as number)} min={16} max={72} size="small" />
-                </Box>
-              </Stack>
-              
-              <Stack direction="row" spacing={2} sx={{ mb: 2 }} alignItems="center">
-                <Box>
-                  <Typography variant="caption" color="text.secondary">Color</Typography>
-                  <input type="color" value={textOverlay.fontColor} onChange={(e) => handleTextChange('fontColor', e.target.value)} style={{ width: 40, height: 32, border: 'none', cursor: 'pointer' }} />
-                </Box>
-                
-                <FormControl size="small" sx={{ minWidth: 100 }}>
-                  <InputLabel>Weight</InputLabel>
-                  <Select value={textOverlay.fontWeight} label="Weight" onChange={(e) => handleTextChange('fontWeight', e.target.value as 'normal' | 'bold')}>
-                    <MenuItem value="normal">Normal</MenuItem>
-                    <MenuItem value="bold">Bold</MenuItem>
-                  </Select>
-                </FormControl>
-                
-                <Box>
-                  <Typography variant="caption" color="text.secondary">Background</Typography>
-                  <Stack direction="row" spacing={0.5}>
-                    {BG_PRESETS.map((bg) => (
-                      <IconButton key={bg.value} size="small" onClick={() => handleTextChange('backgroundColor', bg.value)} sx={{ width: 28, height: 28, bgcolor: bg.color, border: textOverlay.backgroundColor === bg.value ? 2 : 1, borderColor: textOverlay.backgroundColor === bg.value ? 'primary.main' : 'divider', '&:hover': { bgcolor: bg.color } }}>
-                        {bg.value === 'transparent' && <Typography variant="caption">∅</Typography>}
-                      </IconButton>
-                    ))}
-                  </Stack>
-                </Box>
-              </Stack>
-              
-              <Stack direction="row" spacing={1} justifyContent="flex-end">
-                {image.textOverlay && (
-                  <Button color="error" startIcon={<DeleteIcon />} onClick={handleRemoveText}>Remove</Button>
-                )}
-                <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSaveText}>Save Text</Button>
-              </Stack>
-            </Paper>
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>Align</Typography>
+              <ToggleButtonGroup 
+                value={textOverlay.textAlign} 
+                exclusive 
+                onChange={(_, v) => v && handleTextChange('textAlign', v)} 
+                size="small"
+              >
+                <ToggleButton value="left" sx={{ p: 0.5 }}><AlignLeftIcon sx={{ fontSize: 14 }} /></ToggleButton>
+                <ToggleButton value="center" sx={{ p: 0.5 }}><AlignCenterIcon sx={{ fontSize: 14 }} /></ToggleButton>
+                <ToggleButton value="right" sx={{ p: 0.5 }}><AlignRightIcon sx={{ fontSize: 14 }} /></ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
           </Stack>
-        )}
-
-        {/* Timing Mode */}
-        {mode === 'timing' && (
-          <Stack spacing={2}>
-            <Box sx={{ position: 'relative', bgcolor: 'black', borderRadius: 2, overflow: 'hidden', minHeight: 200 }}>
-              <Box component="img" src={image.croppedDataUrl || image.dataUrl} alt={image.name} sx={{ width: '100%', maxHeight: 250, objectFit: 'contain' }} />
-              <Stack sx={{ position: 'absolute', top: 12, right: 12, alignItems: 'flex-end' }} spacing={0.5}>
-                <Chip label={`${(timingDuration / 1000).toFixed(1)}s`} color="primary" />
-                <Chip label={timingTransition} size="small" variant="outlined" sx={{ bgcolor: 'rgba(0,0,0,0.7)' }} />
-              </Stack>
+          
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>Size: {textOverlay.fontSize}</Typography>
+              <Slider 
+                value={textOverlay.fontSize} 
+                onChange={(_, v) => handleTextChange('fontSize', v as number)} 
+                min={16} 
+                max={72} 
+                size="small"
+              />
             </Box>
             
-            <Paper sx={{ p: 2 }}>
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="caption" color="text.secondary">Duration: {(timingDuration / 1000).toFixed(1)} seconds</Typography>
-                <Slider value={timingDuration} onChange={(_, v) => setTimingDuration(v as number)} min={500} max={10000} step={100} />
-                <Stack direction="row" spacing={1}>
-                  {[1000, 2000, 3000, 5000].map((d) => (
-                    <Button key={d} size="small" variant={timingDuration === d ? 'contained' : 'outlined'} onClick={() => setTimingDuration(d)}>{d / 1000}s</Button>
-                  ))}
-                </Stack>
-              </Box>
-              
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="caption" color="text.secondary" gutterBottom display="block">Transition Type</Typography>
-                <ToggleButtonGroup value={timingTransition} exclusive onChange={(_, v) => v && setTimingTransition(v)} size="small">
-                  {TRANSITION_TYPES.map((t) => (
-                    <ToggleButton key={t.value} value={t.value}>{t.label}</ToggleButton>
-                  ))}
-                </ToggleButtonGroup>
-              </Box>
-              
-              <Stack direction="row" spacing={1} justifyContent="flex-end" flexWrap="wrap" useFlexGap>
-                <Button startIcon={<ResetIcon />} onClick={handleResetTiming}>Reset</Button>
-                <Button color="warning" startIcon={<CopyIcon />} onClick={handleCopyToAll}>Copy to All</Button>
-                <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSaveTiming}>Save Timing</Button>
-              </Stack>
-            </Paper>
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>Color</Typography>
+              <input 
+                type="color" 
+                value={textOverlay.fontColor} 
+                onChange={(e) => handleTextChange('fontColor', e.target.value)} 
+                style={{ width: 24, height: 24, border: 'none', cursor: 'pointer', borderRadius: 4, display: 'block' }} 
+              />
+            </Box>
+            
+            <FormControl size="small" sx={{ minWidth: 60 }}>
+              <InputLabel sx={{ fontSize: 10 }}>Wt</InputLabel>
+              <Select 
+                value={textOverlay.fontWeight} 
+                label="Wt" 
+                onChange={(e) => handleTextChange('fontWeight', e.target.value as 'normal' | 'bold')}
+                sx={{ fontSize: 11 }}
+              >
+                <MenuItem value="normal">N</MenuItem>
+                <MenuItem value="bold">B</MenuItem>
+              </Select>
+            </FormControl>
           </Stack>
-        )}
+          
+          <Box sx={{ mb: 1 }}>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: 10, mb: 0.5 }}>
+              Background
+            </Typography>
+            <Stack direction="row" spacing={0.25}>
+              {BG_PRESETS.map((bg) => (
+                <IconButton 
+                  key={bg.value} 
+                  size="small" 
+                  onClick={() => handleTextChange('backgroundColor', bg.value)} 
+                  sx={{ 
+                    width: 20, 
+                    height: 20, 
+                    bgcolor: bg.color, 
+                    border: textOverlay.backgroundColor === bg.value ? 2 : 1, 
+                    borderColor: textOverlay.backgroundColor === bg.value ? 'primary.main' : 'divider', 
+                    '&:hover': { bgcolor: bg.color } 
+                  }}
+                >
+                  {bg.value === 'transparent' && <Typography sx={{ fontSize: 8 }}>∅</Typography>}
+                </IconButton>
+              ))}
+            </Stack>
+          </Box>
+          
+          {image.textOverlay && (
+            <Button size="small" color="error" startIcon={<DeleteIcon />} onClick={handleRemoveText} fullWidth sx={{ py: 0.5 }}>
+              Remove
+            </Button>
+          )}
+        </Box>
       </Box>
     </Box>
   );

@@ -289,6 +289,13 @@ export const MusicControls: React.FC<MusicControlsProps> = ({
         </Stack>
       </Box>
 
+      {/* Playback Duration (shown when playing) */}
+      {isPlaying && (
+        <Typography variant="body2" color="primary" sx={{ minWidth: 80, textAlign: 'center', fontWeight: 500 }}>
+          {formatTime(currentTime)} / {formatTime(effectiveEndTime)}
+        </Typography>
+      )}
+
       {/* Volume */}
       <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 120 }}>
         <VolumeIcon fontSize="small" color="action" />
@@ -316,11 +323,6 @@ export const MusicControls: React.FC<MusicControlsProps> = ({
         >
           {isPlaying ? 'Pause' : 'Preview'}
         </Button>
-        {isPlaying && (
-          <Typography variant="caption" color="text.secondary">
-            {formatTime(currentTime)} / {formatTime(effectiveEndTime)}
-          </Typography>
-        )}
         <IconButton size="small" color="error" onClick={handleRemoveMusic}>
           <CloseIcon fontSize="small" />
         </IconButton>

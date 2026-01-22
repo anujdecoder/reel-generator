@@ -263,10 +263,16 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
     };
   }, [isTransitioning, config.transitionDuration]);
 
-  const clearTimeouts = useCallback(() => {
+  const timeoutRef2 = useRef<number | null>(null);
+  
+  const clearAllTimeouts = useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
+    }
+    if (timeoutRef2.current) {
+      clearTimeout(timeoutRef2.current);
+      timeoutRef2.current = null;
     }
   }, []);
 
@@ -274,48 +280,42 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
     return images[index]?.duration ?? config.imageDuration;
   }, [images, config.imageDuration]);
 
-  const playNextFrame = useCallback(() => {
+  // Main playback effect - runs continuously while playing
+  useEffect(() => {
     if (!isPlaying || images.length === 0) return;
-
-    setCurrentIndex((prev) => {
-      const isLastImage = prev === images.length - 1;
-      
-      // If this is the last image, stop playing
-      if (isLastImage) {
+    
+    const idx = currentIndex;
+    const isLastImage = idx === images.length - 1;
+    
+    // Clear any existing timeouts
+    clearAllTimeouts();
+    
+    if (isLastImage) {
+      // Last image - stop after its duration
+      timeoutRef.current = window.setTimeout(() => {
         setIsPlaying(false);
-        // Save the final playback time
         playbackOffsetRef.current = totalDuration;
         setPlaybackTime(totalDuration);
         if (audioRef?.current) {
           audioRef.current.pause();
         }
-        return prev;
-      }
-
-      // Not the last image - transition to next
-      setIsTransitioning(true);
-      
+      }, getImageDuration(idx));
+    } else {
+      // Not last image - show for duration, then transition to next
       timeoutRef.current = window.setTimeout(() => {
-        setIsTransitioning(false);
-        const next = prev + 1;
-        timeoutRef.current = window.setTimeout(() => {
-          playNextFrame();
-        }, getImageDuration(next));
-        setCurrentIndex(next);
-      }, config.transitionDuration);
-      
-      return prev;
-    });
-  }, [isPlaying, images.length, config.transitionDuration, getImageDuration, audioRef, totalDuration]);
-
-  useEffect(() => {
-    if (isPlaying && images.length > 0) {
-      timeoutRef.current = window.setTimeout(() => {
-        playNextFrame();
-      }, getImageDuration(currentIndex));
+        // Start transition
+        setIsTransitioning(true);
+        
+        timeoutRef2.current = window.setTimeout(() => {
+          // End transition, move to next image
+          setIsTransitioning(false);
+          setCurrentIndex(prev => prev + 1);
+        }, config.transitionDuration);
+      }, getImageDuration(idx));
     }
-    return clearTimeouts;
-  }, [isPlaying, images.length, playNextFrame, currentIndex, getImageDuration, clearTimeouts]);
+    
+    return clearAllTimeouts;
+  }, [isPlaying, currentIndex, images.length, config.transitionDuration, getImageDuration, audioRef, totalDuration, clearAllTimeouts]);
 
   // Track playback time while playing
   useEffect(() => {
@@ -350,7 +350,7 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
       // Pausing - save current position
       playbackOffsetRef.current = playbackTime;
       setIsPlaying(false);
-      clearTimeouts();
+      clearAllTimeouts();
       if (audioRef?.current) {
         audioRef.current.pause();
       }
@@ -378,7 +378,7 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
     setIsTransitioning(false);
     setPlaybackTime(0);
     playbackOffsetRef.current = 0;
-    clearTimeouts();
+    clearAllTimeouts();
     if (audioRef?.current && config.music) {
       audioRef.current.pause();
       audioRef.current.currentTime = config.music.startTime;

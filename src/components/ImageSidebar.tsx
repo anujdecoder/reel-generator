@@ -98,20 +98,22 @@ export const ImageSidebar: React.FC<ImageSidebarProps> = ({
   }
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       {/* Header */}
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="subtitle1" fontWeight={600}>
-          🖼️ Images ({images.length})
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          Drag to reorder
-        </Typography>
+      <Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Typography variant="caption" fontWeight={600}>
+            🖼️ Images ({images.length})
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Drag to reorder
+          </Typography>
+        </Stack>
       </Box>
       
       {/* List */}
-      <Box sx={{ flex: 1, overflow: 'auto', p: 1 }}>
-        <Stack spacing={1}>
+      <Box sx={{ flex: 1, overflow: 'auto', p: 0.5, minHeight: 0 }}>
+        <Stack spacing={0.5}>
           {images.map((image, index) => {
             const isSelected = selectedImageId === image.id;
             const isDragging = draggedIndex === index;
@@ -130,8 +132,8 @@ export const ImageSidebar: React.FC<ImageSidebarProps> = ({
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 1,
-                  p: 1,
+                  gap: 0.5,
+                  p: 0.5,
                   borderRadius: 1,
                   cursor: 'pointer',
                   bgcolor: isSelected 
@@ -144,7 +146,7 @@ export const ImageSidebar: React.FC<ImageSidebarProps> = ({
                     ? 'primary.light' 
                     : 'transparent',
                   opacity: isDragging ? 0.5 : 1,
-                  transition: 'all 0.2s ease',
+                  transition: 'all 0.15s ease',
                   '&:hover': {
                     bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
                   },
@@ -154,14 +156,15 @@ export const ImageSidebar: React.FC<ImageSidebarProps> = ({
                 <Typography
                   variant="caption"
                   sx={{
-                    width: 20,
-                    height: 20,
+                    width: 16,
+                    height: 16,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderRadius: '50%',
                     bgcolor: 'action.hover',
                     flexShrink: 0,
+                    fontSize: 10,
                   }}
                 >
                   {index + 1}
@@ -171,9 +174,9 @@ export const ImageSidebar: React.FC<ImageSidebarProps> = ({
                 <Box
                   sx={{
                     position: 'relative',
-                    width: 48,
-                    height: 48,
-                    borderRadius: 1,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 0.5,
                     overflow: 'hidden',
                     flexShrink: 0,
                   }}
@@ -194,18 +197,18 @@ export const ImageSidebar: React.FC<ImageSidebarProps> = ({
                     spacing={0.25}
                     sx={{
                       position: 'absolute',
-                      bottom: 2,
-                      right: 2,
+                      bottom: 1,
+                      right: 1,
                     }}
                   >
                     {image.cropSettings && (
-                      <CropIcon sx={{ fontSize: 12, color: 'success.main' }} />
+                      <CropIcon sx={{ fontSize: 10, color: 'success.main' }} />
                     )}
                     {image.textOverlay && (
-                      <TextIcon sx={{ fontSize: 12, color: 'primary.main' }} />
+                      <TextIcon sx={{ fontSize: 10, color: 'primary.main' }} />
                     )}
-                    {(image.duration || image.transitionType) && (
-                      <TimerIcon sx={{ fontSize: 12, color: 'warning.main' }} />
+                    {image.duration && (
+                      <TimerIcon sx={{ fontSize: 10, color: 'warning.main' }} />
                     )}
                   </Stack>
                 </Box>
@@ -213,29 +216,17 @@ export const ImageSidebar: React.FC<ImageSidebarProps> = ({
                 {/* Info */}
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography
-                    variant="body2"
+                    variant="caption"
                     sx={{
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
+                      display: 'block',
+                      fontSize: 11,
                     }}
                   >
                     {image.name}
                   </Typography>
-                  {image.textOverlay && (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        display: 'block',
-                      }}
-                    >
-                      {image.textOverlay.text}
-                    </Typography>
-                  )}
                 </Box>
                 
                 {/* Actions */}
@@ -244,30 +235,30 @@ export const ImageSidebar: React.FC<ImageSidebarProps> = ({
                     size="small"
                     onClick={(e) => { e.stopPropagation(); moveImage(index, 'up'); }}
                     disabled={index === 0}
-                    sx={{ p: 0.5 }}
+                    sx={{ p: 0.25 }}
                   >
-                    <ArrowUpIcon fontSize="small" />
+                    <ArrowUpIcon sx={{ fontSize: 16 }} />
                   </IconButton>
                   <IconButton
                     size="small"
                     onClick={(e) => { e.stopPropagation(); moveImage(index, 'down'); }}
                     disabled={index === images.length - 1}
-                    sx={{ p: 0.5 }}
+                    sx={{ p: 0.25 }}
                   >
-                    <ArrowDownIcon fontSize="small" />
+                    <ArrowDownIcon sx={{ fontSize: 16 }} />
                   </IconButton>
                   <IconButton
                     size="small"
                     onClick={(e) => { e.stopPropagation(); onRemove(image.id); }}
                     color="error"
-                    sx={{ p: 0.5 }}
+                    sx={{ p: 0.25 }}
                   >
-                    <CloseIcon fontSize="small" />
+                    <CloseIcon sx={{ fontSize: 16 }} />
                   </IconButton>
                 </Stack>
                 
                 {/* Drag Handle */}
-                <DragIcon sx={{ color: 'text.disabled', cursor: 'grab' }} />
+                <DragIcon sx={{ color: 'text.disabled', cursor: 'grab', fontSize: 16 }} />
               </Box>
             );
           })}
