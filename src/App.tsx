@@ -1,9 +1,24 @@
-import { useCallback, useState, useRef, useMemo } from 'react';
-import { ImageUpload, ImageList, ReelPreview, TextOverlayEditor, ImageCropEditor, MusicUpload } from './components';
+import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
+import {
+  Box,
+  Container,
+  Typography,
+  Button,
+  Chip,
+  CircularProgress,
+  Alert,
+  Stack,
+  Paper,
+} from '@mui/material';
+import {
+  MusicNote as MusicNoteIcon,
+  Movie as MovieIcon,
+  DeleteSweep as DeleteSweepIcon,
+} from '@mui/icons-material';
+import { ImageUpload, ImageSidebar, ImageEditor, MusicUpload, MusicControls, PreviewModal } from './components';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useImageStorage } from './hooks/useImageStorage';
-import type { ImageItem, ReelConfig, TextOverlay, CropSettings, MusicTrack } from './types';
-import './App.css';
+import type { ImageItem, ReelConfig, TextOverlay, CropSettings, MusicTrack, TransitionType } from './types';
 
 const DEFAULT_CONFIG: ReelConfig = {
   transitionDuration: 500,
@@ -17,21 +32,43 @@ function App() {
   const [images, setImages, isLoadingImages, storageError] = useImageStorage();
   // Use localStorage for config (small data)
   const [config, setConfig] = useLocalStorage<ReelConfig>('reel-config', DEFAULT_CONFIG);
+  const [selectedImage, setSelectedImage] = useState<ImageItem | null>(null);
+  const [showMusicUpload, setShowMusicUpload] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [editingImage, setEditingImage] = useState<ImageItem | null>(null);
-  const [croppingImage, setCroppingImage] = useState<ImageItem | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   // Calculate video duration based on images and config
   const videoDuration = useMemo(() => {
     if (images.length === 0) return 0;
-    const totalMs = images.length * (config.imageDuration + config.transitionDuration);
+    // Sum up per-image durations (using default if not set) plus transitions
+    const totalMs = images.reduce((sum, img) => {
+      const duration = img.duration ?? config.imageDuration;
+      return sum + duration + config.transitionDuration;
+    }, 0);
     return totalMs / 1000; // Convert to seconds
-  }, [images.length, config.imageDuration, config.transitionDuration]);
+  }, [images, config.imageDuration, config.transitionDuration]);
+
+  // Select first image when images change and no image is selected
+  useEffect(() => {
+    if (images.length > 0 && !selectedImage) {
+      setSelectedImage(images[0]);
+    } else if (images.length === 0) {
+      setSelectedImage(null);
+    } else if (selectedImage && !images.find(img => img.id === selectedImage.id)) {
+      // If selected image was removed, select the first one
+      setSelectedImage(images[0] || null);
+    }
+    // Only re-run when images array changes, not selectedImage
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [images]);
 
   const handleImagesAdded = useCallback((newImages: ImageItem[]) => {
     setImages((prev) => [...prev, ...newImages]);
-  }, [setImages]);
+    // Select the first new image if nothing is selected
+    if (newImages.length > 0 && !selectedImage) {
+      setSelectedImage(newImages[0]);
+    }
+  }, [setImages, selectedImage]);
 
   const handleRemoveImage = useCallback((id: string) => {
     setImages((prev) => prev.filter((img) => img.id !== id));
@@ -44,20 +81,12 @@ function App() {
   const handleClearAll = useCallback(() => {
     if (window.confirm('Are you sure you want to remove all images?')) {
       setImages([]);
-      setShowPreview(false);
+      setSelectedImage(null);
     }
   }, [setImages]);
 
-  const handleProceedToGenerate = () => {
-    setShowPreview(true);
-  };
-
-  const handleBackToEdit = () => {
-    setShowPreview(false);
-  };
-
-  const handleEditText = useCallback((image: ImageItem) => {
-    setEditingImage(image);
+  const handleSelectImage = useCallback((image: ImageItem) => {
+    setSelectedImage(image);
   }, []);
 
   const handleSaveTextOverlay = useCallback((imageId: string, textOverlay: TextOverlay | undefined) => {
@@ -66,15 +95,11 @@ function App() {
         img.id === imageId ? { ...img, textOverlay } : img
       )
     );
-  }, [setImages]);
-
-  const handleCloseTextEditor = useCallback(() => {
-    setEditingImage(null);
-  }, []);
-
-  const handleEditCrop = useCallback((image: ImageItem) => {
-    setCroppingImage(image);
-  }, []);
+    // Update selected image if it's the one being edited
+    if (selectedImage?.id === imageId) {
+      setSelectedImage(prev => prev ? { ...prev, textOverlay } : null);
+    }
+  }, [setImages, selectedImage]);
 
   const handleSaveCrop = useCallback((imageId: string, cropSettings: CropSettings, croppedDataUrl: string) => {
     setImages((prev) =>
@@ -82,14 +107,37 @@ function App() {
         img.id === imageId ? { ...img, cropSettings, croppedDataUrl } : img
       )
     );
-  }, [setImages]);
+    // Update selected image if it's the one being edited
+    if (selectedImage?.id === imageId) {
+      setSelectedImage(prev => prev ? { ...prev, cropSettings, croppedDataUrl } : null);
+    }
+  }, [setImages, selectedImage]);
 
-  const handleCloseCropEditor = useCallback(() => {
-    setCroppingImage(null);
-  }, []);
+  const handleSaveTiming = useCallback((imageId: string, duration: number | undefined, transitionType: TransitionType | undefined) => {
+    setImages((prev) =>
+      prev.map((img) =>
+        img.id === imageId ? { ...img, duration, transitionType } : img
+      )
+    );
+    // Update selected image if it's the one being edited
+    if (selectedImage?.id === imageId) {
+      setSelectedImage(prev => prev ? { ...prev, duration, transitionType } : null);
+    }
+  }, [setImages, selectedImage]);
+
+  const handleCopyTimingToAll = useCallback((duration: number, transitionType: TransitionType) => {
+    setImages((prev) =>
+      prev.map((img) => ({ ...img, duration, transitionType }))
+    );
+    // Update selected image with new timing
+    if (selectedImage) {
+      setSelectedImage(prev => prev ? { ...prev, duration, transitionType } : null);
+    }
+  }, [setImages, selectedImage]);
 
   const handleMusicChange = useCallback((music: MusicTrack | undefined) => {
     setConfig((prev) => ({ ...prev, music }));
+    setShowMusicUpload(false);
     // Update audio element source
     if (audioRef.current) {
       if (music) {
@@ -102,242 +150,210 @@ function App() {
     }
   }, [setConfig]);
 
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>🎬 Reel Generator</h1>
-        <p className="app-subtitle">Create stunning video reels from your images</p>
-      </header>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: 'background.default',
+      }}
+    >
+      {/* Header */}
+      <Box
+        component="header"
+        sx={{
+          py: 3,
+          textAlign: 'center',
+          borderBottom: 1,
+          borderColor: 'divider',
+        }}
+      >
+        <Typography variant="h4" component="h1" fontWeight="bold">
+          🎬 Reel Generator
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          Create stunning video reels from your images
+        </Typography>
+      </Box>
 
-      {/* Step Indicator */}
-      <div className="step-indicator">
-        <div className={`step ${!showPreview ? 'active' : 'completed'}`}>
-          <span className="step-number">1</span>
-          <span className="step-label">Upload & Order Images</span>
-        </div>
-        <div className="step-connector"></div>
-        <div className={`step ${showPreview ? 'active' : ''}`}>
-          <span className="step-number">2</span>
-          <span className="step-label">Preview & Generate</span>
-        </div>
-      </div>
+      {/* Main Content */}
+      <Box component="main" sx={{ flex: 1, py: 3 }}>
+        <Container maxWidth="xl">
+          {/* Loading State */}
+          {isLoadingImages && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8 }}>
+              <CircularProgress size={48} />
+              <Typography sx={{ mt: 2 }}>Loading your images...</Typography>
+            </Box>
+          )}
 
-      <main className="app-main">
-        {/* Show loading state */}
-        {isLoadingImages && (
-          <div className="loading-state">
-            <div className="loading-spinner">⏳</div>
-            <p>Loading your images...</p>
-          </div>
-        )}
+          {/* Storage Error */}
+          {storageError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {storageError}
+            </Alert>
+          )}
 
-        {/* Show storage error if any */}
-        {storageError && (
-          <div className="error-state">
-            <p>⚠️ {storageError}</p>
-          </div>
-        )}
+          {!isLoadingImages && images.length === 0 ? (
+            /* No images - show upload screen */
+            <Paper sx={{ p: 4, textAlign: 'center', maxWidth: 600, mx: 'auto' }}>
+              <Typography variant="h5" gutterBottom>
+                📤 Upload Your Images
+              </Typography>
+              <Typography color="text.secondary" sx={{ mb: 3 }}>
+                Select multiple images to create your video reel
+              </Typography>
+              
+              <ImageUpload onImagesAdded={handleImagesAdded} variant="dropzone" />
+              
+              <Typography color="text.secondary" sx={{ mt: 3 }}>
+                👆 Upload at least 2 images to create a reel
+              </Typography>
+            </Paper>
+          ) : !isLoadingImages ? (
+            /* Images exist - show the editor layout */
+            <Stack spacing={2}>
+              {/* Action Bar */}
+              <Paper sx={{ p: 2 }}>
+                <Stack
+                  direction={{ xs: 'column', md: 'row' }}
+                  justifyContent="space-between"
+                  alignItems={{ xs: 'stretch', md: 'center' }}
+                  spacing={2}
+                >
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    <ImageUpload onImagesAdded={handleImagesAdded} />
+                    <Button
+                      variant="outlined"
+                      startIcon={<MusicNoteIcon />}
+                      onClick={() => setShowMusicUpload(!showMusicUpload)}
+                    >
+                      {config.music ? 'Change Music' : 'Add Music'}
+                    </Button>
+                    <Button
+                      variant="contained"
+                      startIcon={<MovieIcon />}
+                      onClick={() => setShowPreview(true)}
+                      disabled={images.length < 2}
+                    >
+                      Preview & Generate
+                    </Button>
+                  </Stack>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip
+                      label={`${images.length} image${images.length !== 1 ? 's' : ''}`}
+                      color="primary"
+                      variant="outlined"
+                    />
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      startIcon={<DeleteSweepIcon />}
+                      onClick={handleClearAll}
+                      size="small"
+                    >
+                      Clear All
+                    </Button>
+                  </Stack>
+                </Stack>
+              </Paper>
 
-        {!isLoadingImages && !showPreview ? (
-          /* Step 1: Upload and Order Images */
-          <div className="upload-section">
-            <div className="section-header">
-              <h2>📤 Upload Your Images</h2>
-              <p>Select multiple images at once. You can upload more anytime.</p>
-            </div>
-            
-            <ImageUpload onImagesAdded={handleImagesAdded} />
-            
-            {images.length > 0 && (
-              <>
-                <div className="section-header">
-                  <h2>🖼️ Arrange Your Images</h2>
-                  <p>Drag and drop to set the order. Images will play from first to last.</p>
-                </div>
-
-                <div className="images-header">
-                  <span className="image-count">{images.length} image{images.length !== 1 ? 's' : ''} selected</span>
-                  <button className="clear-btn" onClick={handleClearAll}>
-                    🗑️ Clear All
-                  </button>
-                </div>
-                
-                <ImageList
-                  images={images}
-                  onRemove={handleRemoveImage}
-                  onReorder={handleReorderImages}
-                  onEditText={handleEditText}
-                  onEditCrop={handleEditCrop}
-                />
-
-                {/* Prominent CTA to proceed */}
-                <div className="proceed-section">
-                  <div className="proceed-info">
-                    <p>✅ Images are ready!</p>
-                    <p className="proceed-hint">You've selected {images.length} images. Continue to preview and generate your video.</p>
-                  </div>
-                  <button 
-                    className="proceed-btn"
-                    onClick={handleProceedToGenerate}
-                    disabled={images.length < 2}
-                  >
-                    {images.length < 2 
-                      ? `Add ${2 - images.length} more image${2 - images.length !== 1 ? 's' : ''} to continue`
-                      : '🎬 Continue to Generate Video →'
-                    }
-                  </button>
-                </div>
-              </>
-            )}
-
-            {images.length === 0 && (
-              <div className="empty-state">
-                <p>👆 Upload at least 2 images to create a reel</p>
-              </div>
-            )}
-          </div>
-        ) : !isLoadingImages ? (
-          /* Step 2: Preview and Generate */
-          <div className="preview-section">
-            <button className="back-btn" onClick={handleBackToEdit}>
-              ← Back to Edit Images
-            </button>
-            
-            <div className="preview-layout">
-              {/* Left side: Image list and controls */}
-              <div className="preview-left">
-                <div className="images-summary">
-                  <h3>📋 Reorder Images ({images.length})</h3>
-                  <p className="summary-hint">Drag to reorder • This is the playback order</p>
-                  <div className="summary-list">
-                    {images.map((image, index) => (
-                      <div 
-                        key={image.id} 
-                        className="summary-item"
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData('text/plain', index.toString());
-                        }}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          e.currentTarget.classList.add('drag-over');
-                        }}
-                        onDragLeave={(e) => {
-                          e.currentTarget.classList.remove('drag-over');
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          e.currentTarget.classList.remove('drag-over');
-                          const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
-                          const toIndex = index;
-                          if (fromIndex !== toIndex) {
-                            const newImages = [...images];
-                            const [moved] = newImages.splice(fromIndex, 1);
-                            newImages.splice(toIndex, 0, moved);
-                            handleReorderImages(newImages);
-                          }
-                        }}
-                      >
-                        <span className="summary-number">{index + 1}</span>
-                        <div className="summary-image-wrapper">
-                          <img src={image.croppedDataUrl || image.dataUrl} alt={image.name} />
-                          {image.cropSettings && (
-                            <span className="summary-crop-badge" title="Cropped">✂</span>
-                          )}
-                          {image.textOverlay && (
-                            <span className="summary-text-badge" title={image.textOverlay.text}>T</span>
-                          )}
-                        </div>
-                        <div className="summary-info">
-                          <span className="summary-name">{image.name}</span>
-                          {image.textOverlay && (
-                            <span className="summary-text-preview">{image.textOverlay.text}</span>
-                          )}
-                        </div>
-                        <span className="drag-icon">⋮⋮</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Music Upload */}
-                <div className="music-section">
+              {/* Music Upload Dropdown */}
+              {showMusicUpload && !config.music && (
+                <Paper sx={{ p: 2 }}>
                   <MusicUpload
                     music={config.music}
                     videoDuration={videoDuration}
                     onMusicChange={handleMusicChange}
                   />
-                  {config.music && (
-                    <div className="music-status">
-                      ✓ Music will play from {formatTime(config.music.startTime)} to {formatTime(config.music.endTime)}
-                    </div>
-                  )}
-                </div>
+                </Paper>
+              )}
 
-                {/* Generate CTA */}
-                <div className="generate-section">
-                  <ReelPreview
-                    images={images}
-                    config={config}
-                    onConfigChange={setConfig}
-                    showPreviewPlayer={false}
+              {/* Music Controls */}
+              {config.music && (
+                <Paper sx={{ p: 2 }}>
+                  <MusicControls
+                    music={config.music}
+                    videoDuration={videoDuration}
+                    onMusicChange={handleMusicChange}
                   />
-                </div>
-              </div>
-              
-              {/* Right side: Large Preview */}
-              <div className="preview-right">
-                <h3>🎬 Preview</h3>
-                <ReelPreview
-                  images={images}
-                  config={config}
-                  onConfigChange={setConfig}
-                  showPreviewOnly={true}
-                  audioRef={audioRef}
-                />
-              </div>
+                </Paper>
+              )}
 
-              {/* Hidden audio element for music playback */}
-              <audio ref={audioRef} />
-            </div>
-          </div>
-        ) : null}
-      </main>
+              {/* Two-column layout */}
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', md: '300px 1fr' },
+                  gap: 2,
+                  minHeight: 500,
+                }}
+              >
+                {/* Left column: Image Sidebar */}
+                <Paper sx={{ overflow: 'hidden' }}>
+                  <ImageSidebar
+                    images={images}
+                    selectedImageId={selectedImage?.id || null}
+                    onSelectImage={handleSelectImage}
+                    onReorder={handleReorderImages}
+                    onRemove={handleRemoveImage}
+                  />
+                </Paper>
 
-      <footer className="app-footer">
-        <p>
-          {!showPreview 
-            ? 'Tip: Click ✂️ to crop/resize • Click 📝 to add text overlay'
-            : 'Tip: Adjust settings and preview before generating your final video'
+                {/* Right column: Image Editor */}
+                <Paper sx={{ overflow: 'hidden' }}>
+                  <ImageEditor
+                    image={selectedImage}
+                    defaultDuration={config.imageDuration}
+                    defaultTransition={config.transitionType}
+                    onSaveTextOverlay={handleSaveTextOverlay}
+                    onSaveCrop={handleSaveCrop}
+                    onSaveTiming={handleSaveTiming}
+                    onCopyTimingToAll={handleCopyTimingToAll}
+                  />
+                </Paper>
+              </Box>
+            </Stack>
+          ) : null}
+        </Container>
+      </Box>
+
+      {/* Footer */}
+      <Box
+        component="footer"
+        sx={{
+          py: 2,
+          textAlign: 'center',
+          borderTop: 1,
+          borderColor: 'divider',
+        }}
+      >
+        <Typography variant="body2" color="text.secondary">
+          {images.length === 0 
+            ? 'Tip: Upload multiple images at once by selecting them all'
+            : images.length < 2
+            ? 'Tip: Add at least one more image to create a reel'
+            : 'Tip: Click an image in the sidebar to crop or add text'
           }
-        </p>
-      </footer>
+        </Typography>
+      </Box>
 
-      {/* Text Overlay Editor Modal */}
-      {editingImage && (
-        <TextOverlayEditor
-          image={editingImage}
-          onSave={handleSaveTextOverlay}
-          onClose={handleCloseTextEditor}
+      {/* Preview Modal */}
+      {showPreview && (
+        <PreviewModal
+          images={images}
+          config={config}
+          onConfigChange={setConfig}
+          onClose={() => setShowPreview(false)}
         />
       )}
 
-      {/* Crop Editor Modal */}
-      {croppingImage && (
-        <ImageCropEditor
-          image={croppingImage}
-          onSave={handleSaveCrop}
-          onClose={handleCloseCropEditor}
-        />
-      )}
-    </div>
+      {/* Hidden audio element for music playback */}
+      <audio ref={audioRef} />
+    </Box>
   );
 }
 
 export default App;
+

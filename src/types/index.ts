@@ -29,6 +29,9 @@ export interface ImageItem {
   createdAt: number;
   textOverlay?: TextOverlay;
   cropSettings?: CropSettings;
+  // Per-image timing settings (optional, uses global defaults if not set)
+  duration?: number; // How long this image shows in ms
+  transitionType?: TransitionType; // Transition to next image
 }
 
 export interface MusicTrack {

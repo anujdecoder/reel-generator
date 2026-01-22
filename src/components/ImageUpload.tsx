@@ -1,13 +1,24 @@
 import React, { useRef, useState } from 'react';
+import {
+  Box,
+  Button,
+  Typography,
+  CircularProgress,
+  alpha,
+} from '@mui/material';
+import { CloudUpload as CloudUploadIcon } from '@mui/icons-material';
 import type { ImageItem } from '../types';
 import { generateId, compressImage, formatFileSize, getDataUrlSize } from '../utils/helpers';
-import './ImageUpload.css';
 
 interface ImageUploadProps {
   onImagesAdded: (images: ImageItem[]) => void;
+  variant?: 'dropzone' | 'button';
 }
 
-export const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesAdded }) => {
+export const ImageUpload: React.FC<ImageUploadProps> = ({ 
+  onImagesAdded,
+  variant = 'button',
+}) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -94,41 +105,92 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({ onImagesAdded }) => {
     fileInputRef.current?.click();
   };
 
+  const hiddenInput = (
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept="image/*"
+      multiple
+      onChange={handleFileChange}
+      style={{ display: 'none' }}
+    />
+  );
+
+  // Button variant for action bar
+  if (variant === 'button') {
+    return (
+      <>
+        {hiddenInput}
+        <Button
+          variant="outlined"
+          startIcon={isProcessing ? <CircularProgress size={16} /> : <CloudUploadIcon />}
+          onClick={handleClick}
+          disabled={isProcessing}
+        >
+          {isProcessing ? 'Processing...' : 'Upload Images'}
+        </Button>
+      </>
+    );
+  }
+
+  // Dropzone variant for initial upload screen
   return (
-    <div
-      className={`image-upload ${isDragging ? 'dragging' : ''} ${isProcessing ? 'processing' : ''}`}
+    <Box
+      onClick={handleClick}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      onClick={handleClick}
+      sx={{
+        border: 2,
+        borderStyle: 'dashed',
+        borderColor: isDragging ? 'primary.main' : 'divider',
+        borderRadius: 2,
+        p: 4,
+        textAlign: 'center',
+        cursor: isProcessing ? 'wait' : 'pointer',
+        bgcolor: isDragging 
+          ? (theme) => alpha(theme.palette.primary.main, 0.1)
+          : 'transparent',
+        transition: 'all 0.2s ease',
+        '&:hover': {
+          borderColor: 'primary.main',
+          bgcolor: (theme) => alpha(theme.palette.primary.main, 0.05),
+        },
+      }}
     >
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        onChange={handleFileChange}
-        className="file-input"
-      />
-      <div className="upload-content">
-        <div className="upload-icon">{isProcessing ? '⏳' : '📁'}</div>
-        {isProcessing ? (
-          <>
-            <p>Processing images...</p>
-            {processingStatus && (
-              <p className="upload-status">{processingStatus}</p>
-            )}
-          </>
-        ) : (
-          <>
-            <p className="upload-text">
-              <span className="upload-highlight">Click to upload</span> or drag and drop
-            </p>
-            <p className="upload-hint">PNG, JPG, GIF, WebP (multiple allowed)</p>
-            <p className="upload-hint">Images are automatically compressed for optimal storage</p>
-          </>
-        )}
-      </div>
-    </div>
+      {hiddenInput}
+      
+      <Typography variant="h2" sx={{ mb: 2 }}>
+        {isProcessing ? '⏳' : '📁'}
+      </Typography>
+      
+      {isProcessing ? (
+        <>
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            Processing images...
+          </Typography>
+          {processingStatus && (
+            <Typography variant="body2" color="text.secondary">
+              {processingStatus}
+            </Typography>
+          )}
+        </>
+      ) : (
+        <>
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            <Box component="span" sx={{ color: 'primary.main', fontWeight: 600 }}>
+              Click to upload
+            </Box>{' '}
+            or drag and drop
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            PNG, JPG, GIF, WebP (multiple allowed)
+          </Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+            Images are automatically compressed for optimal storage
+          </Typography>
+        </>
+      )}
+    </Box>
   );
 };

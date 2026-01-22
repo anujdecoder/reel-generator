@@ -1,7 +1,22 @@
 import React, { useRef, useState, useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  Button,
+  Slider,
+  Stack,
+  IconButton,
+  CircularProgress,
+  alpha,
+} from '@mui/material';
+import {
+  MusicNote as MusicNoteIcon,
+  Close as CloseIcon,
+  PlayArrow as PlayIcon,
+  Pause as PauseIcon,
+} from '@mui/icons-material';
 import type { MusicTrack } from '../types';
 import { generateId } from '../utils/helpers';
-import './MusicUpload.css';
 
 interface MusicUploadProps {
   music: MusicTrack | undefined;
@@ -128,26 +143,6 @@ export const MusicUpload: React.FC<MusicUploadProps> = ({
     }
   };
 
-  const handleStartTimeChange = (value: number) => {
-    if (!music) return;
-    const newStart = Math.min(value, music.endTime - 1);
-    onMusicChange({ ...music, startTime: newStart });
-  };
-
-  const handleEndTimeChange = (value: number) => {
-    if (!music) return;
-    const newEnd = Math.max(value, music.startTime + 1);
-    onMusicChange({ ...music, endTime: newEnd });
-  };
-
-  const handleVolumeChange = (value: number) => {
-    if (!music) return;
-    onMusicChange({ ...music, volume: value });
-    if (audioRef.current) {
-      audioRef.current.volume = value;
-    }
-  };
-
   const handleRemoveMusic = () => {
     if (audioRef.current) {
       audioRef.current.pause();
@@ -162,14 +157,30 @@ export const MusicUpload: React.FC<MusicUploadProps> = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const selectedDuration = music ? music.endTime - music.startTime : 0;
-
   return (
-    <div className="music-upload">
-      <h4>🎵 Background Music</h4>
+    <Box>
+      <Typography variant="subtitle2" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <MusicNoteIcon fontSize="small" /> Background Music
+      </Typography>
       
       {!music ? (
-        <div className="music-upload-area" onClick={() => fileInputRef.current?.click()}>
+        <Box
+          onClick={() => fileInputRef.current?.click()}
+          sx={{
+            border: 2,
+            borderStyle: 'dashed',
+            borderColor: 'divider',
+            borderRadius: 2,
+            p: 3,
+            textAlign: 'center',
+            cursor: isLoading ? 'wait' : 'pointer',
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              borderColor: 'primary.main',
+              bgcolor: (theme) => alpha(theme.palette.primary.main, 0.05),
+            },
+          }}
+        >
           <input
             ref={fileInputRef}
             type="file"
@@ -178,75 +189,101 @@ export const MusicUpload: React.FC<MusicUploadProps> = ({
             style={{ display: 'none' }}
           />
           {isLoading ? (
-            <p>Loading audio...</p>
+            <CircularProgress size={24} />
           ) : (
             <>
-              <span className="music-icon">🎵</span>
-              <p>Click to add background music</p>
-              <span className="music-hint">MP3, WAV, OGG supported</span>
+              <MusicNoteIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+              <Typography>Click to add background music</Typography>
+              <Typography variant="caption" color="text.secondary">
+                MP3, WAV, OGG supported
+              </Typography>
             </>
           )}
-        </div>
+        </Box>
       ) : (
-        <div className="music-editor">
-          <div className="music-info">
-            <span className="music-name">🎵 {music.name}</span>
-            <button className="remove-music-btn" onClick={handleRemoveMusic}>✕</button>
-          </div>
+        <Stack spacing={2}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <MusicNoteIcon fontSize="small" /> {music.name}
+            </Typography>
+            <IconButton size="small" color="error" onClick={handleRemoveMusic}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Stack>
 
-          <div className="music-duration-info">
-            <span>Video duration: {formatTime(videoDuration)}</span>
-            <span>Selected: {formatTime(selectedDuration)}</span>
-          </div>
+          <Stack direction="row" spacing={2}>
+            <Typography variant="caption" color="text.secondary">
+              Video: {formatTime(videoDuration)}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Selected: {formatTime(music.endTime - music.startTime)}
+            </Typography>
+          </Stack>
 
-          <div className="music-trimmer">
-            <label>Start: {formatTime(music.startTime)}</label>
-            <input
-              type="range"
-              min={0}
-              max={music.duration}
-              step={0.1}
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              Start: {formatTime(music.startTime)}
+            </Typography>
+            <Slider
+              size="small"
               value={music.startTime}
-              onChange={(e) => handleStartTimeChange(Number(e.target.value))}
-            />
-          </div>
-
-          <div className="music-trimmer">
-            <label>End: {formatTime(music.endTime)}</label>
-            <input
-              type="range"
               min={0}
               max={music.duration}
               step={0.1}
-              value={music.endTime}
-              onChange={(e) => handleEndTimeChange(Number(e.target.value))}
+              onChange={(_, v) => onMusicChange({ ...music, startTime: Math.min(v as number, music.endTime - 1) })}
             />
-          </div>
+          </Box>
 
-          <div className="music-volume">
-            <label>Volume: {Math.round(music.volume * 100)}%</label>
-            <input
-              type="range"
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              End: {formatTime(music.endTime)}
+            </Typography>
+            <Slider
+              size="small"
+              value={music.endTime}
+              min={0}
+              max={music.duration}
+              step={0.1}
+              onChange={(_, v) => onMusicChange({ ...music, endTime: Math.max(v as number, music.startTime + 1) })}
+            />
+          </Box>
+
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              Volume: {Math.round(music.volume * 100)}%
+            </Typography>
+            <Slider
+              size="small"
+              value={music.volume}
               min={0}
               max={1}
               step={0.05}
-              value={music.volume}
-              onChange={(e) => handleVolumeChange(Number(e.target.value))}
+              onChange={(_, v) => {
+                onMusicChange({ ...music, volume: v as number });
+                if (audioRef.current) audioRef.current.volume = v as number;
+              }}
             />
-          </div>
+          </Box>
 
-          <div className="music-preview">
-            <button className="preview-btn" onClick={handlePlayPause}>
-              {isPlaying ? '⏸ Pause' : '▶ Preview'}
-            </button>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={isPlaying ? <PauseIcon /> : <PlayIcon />}
+              onClick={handlePlayPause}
+            >
+              {isPlaying ? 'Pause' : 'Preview'}
+            </Button>
             {isPlaying && (
-              <span className="current-time">{formatTime(currentTime)}</span>
+              <Typography variant="caption" color="text.secondary">
+                {formatTime(currentTime)}
+              </Typography>
             )}
-          </div>
+          </Stack>
 
           <audio ref={audioRef} />
-        </div>
+        </Stack>
       )}
-    </div>
+    </Box>
   );
 };
