@@ -63,7 +63,8 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const timeoutRef = useRef<number | null>(null);
-  const animationRef = useRef<number | null>(null);
+  const transitionAnimationRef = useRef<number | null>(null); // For transition animations
+  const playbackAnimationRef = useRef<number | null>(null); // For playback time tracking
   const playbackStartRef = useRef<number>(0); // When playback started
   const playbackOffsetRef = useRef<number>(0); // Time offset when paused/resumed
   
@@ -250,15 +251,15 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
       setTransitionProgress(progress);
 
       if (progress < 1) {
-        animationRef.current = requestAnimationFrame(animate);
+        transitionAnimationRef.current = requestAnimationFrame(animate);
       }
     };
 
-    animationRef.current = requestAnimationFrame(animate);
+    transitionAnimationRef.current = requestAnimationFrame(animate);
 
     return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
+      if (transitionAnimationRef.current) {
+        cancelAnimationFrame(transitionAnimationRef.current);
       }
     };
   }, [isTransitioning, config.transitionDuration]);
@@ -333,14 +334,14 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
       }
       
       setPlaybackTime(currentTime);
-      animationRef.current = requestAnimationFrame(updatePlaybackTime);
+      playbackAnimationRef.current = requestAnimationFrame(updatePlaybackTime);
     };
 
-    animationRef.current = requestAnimationFrame(updatePlaybackTime);
+    playbackAnimationRef.current = requestAnimationFrame(updatePlaybackTime);
 
     return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
+      if (playbackAnimationRef.current) {
+        cancelAnimationFrame(playbackAnimationRef.current);
       }
     };
   }, [isPlaying, totalDuration]);
