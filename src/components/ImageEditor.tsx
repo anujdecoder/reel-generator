@@ -366,37 +366,91 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
     setTextOverlay(newOverlay);
   };
 
-  // Save text immediately when text changes (debounced)
+  // Use refs for callbacks to avoid effect dependency issues
+  const onSaveTextOverlayRef = useRef(onSaveTextOverlay);
+  const onSaveTimingRef = useRef(onSaveTiming);
   useEffect(() => {
-    if (!image) return;
+    onSaveTextOverlayRef.current = onSaveTextOverlay;
+    onSaveTimingRef.current = onSaveTiming;
+  });
+
+  // Track if user has modified text (to avoid saving on initial load)
+  const hasUserModifiedText = useRef(false);
+  const lastSavedTextRef = useRef<string>('');
+
+  // Reset modification tracking when image changes
+  useEffect(() => {
+    hasUserModifiedText.current = false;
+    lastSavedTextRef.current = image?.textOverlay?.text || '';
+  }, [image?.id]);
+
+  // Save text when it changes (debounced) - only if user modified it
+  useEffect(() => {
+    if (!image?.id) return;
+    
+    // Check if text actually changed from last saved value
+    const currentText = textOverlay.text;
+    if (currentText === lastSavedTextRef.current && !hasUserModifiedText.current) {
+      return;
+    }
+    
+    const imageId = image.id;
+    const overlayToSave = { ...textOverlay };
     
     const timer = setTimeout(() => {
-      if (textOverlay.text.trim()) {
-        onSaveTextOverlay(image.id, textOverlay);
+      if (overlayToSave.text.trim()) {
+        onSaveTextOverlayRef.current(imageId, overlayToSave);
+        lastSavedTextRef.current = overlayToSave.text;
       }
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [image, textOverlay, onSaveTextOverlay]);
+  }, [image?.id, textOverlay]);
+
+  // Mark text as modified when user types
+  const handleTextChangeWithTracking = <K extends keyof TextOverlay>(field: K, value: TextOverlay[K]) => {
+    hasUserModifiedText.current = true;
+    handleTextChange(field, value);
+  };
 
   const handleRemoveText = () => {
     if (!image) return;
-    onSaveTextOverlay(image.id, undefined);
+    onSaveTextOverlayRef.current(image.id, undefined);
     setTextOverlay(DEFAULT_TEXT_OVERLAY);
+    lastSavedTextRef.current = '';
+    hasUserModifiedText.current = false;
   };
 
   // Save timing when duration or transition changes (debounced)
+  const lastSavedTimingRef = useRef({ duration: defaultDuration, transitionType: defaultTransition });
+  
   useEffect(() => {
-    if (!image) return;
+    lastSavedTimingRef.current = { 
+      duration: image?.duration ?? defaultDuration, 
+      transitionType: image?.transitionType ?? defaultTransition 
+    };
+  }, [image?.id]);
+
+  useEffect(() => {
+    if (!image?.id) return;
+    
+    // Check if timing actually changed
+    if (timingDuration === lastSavedTimingRef.current.duration && 
+        transitionType === lastSavedTimingRef.current.transitionType) {
+      return;
+    }
+    
+    const imageId = image.id;
     
     const timer = setTimeout(() => {
       const duration = timingDuration !== defaultDuration ? timingDuration : undefined;
       const transition = transitionType !== defaultTransition ? transitionType : undefined;
-      onSaveTiming(image.id, duration, transition);
+      onSaveTimingRef.current(imageId, duration, transition);
+      lastSavedTimingRef.current = { duration: timingDuration, transitionType };
     }, 300);
     
     return () => clearTimeout(timer);
-  }, [image, timingDuration, transitionType, defaultDuration, defaultTransition, onSaveTiming]);
+  }, [image?.id, timingDuration, transitionType, defaultDuration, defaultTransition]);
 
   const getTextPositionStyle = (): React.CSSProperties => {
     const base: React.CSSProperties = {
@@ -605,7 +659,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
             rows={2} 
             size="small"
             value={textOverlay.text} 
-            onChange={(e) => handleTextChange('text', e.target.value)} 
+            onChange={(e) => handleTextChangeWithTracking('text', e.target.value)} 
             placeholder="Enter text..." 
             sx={{ mb: 1, '& .MuiInputBase-input': { fontSize: 12 } }} 
           />
@@ -616,7 +670,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
               <ToggleButtonGroup 
                 value={textOverlay.position} 
                 exclusive 
-                onChange={(_, v) => v && handleTextChange('position', v)} 
+                onChange={(_, v) => v && handleTextChangeWithTracking('position', v)} 
                 size="small"
               >
                 <ToggleButton value="top" sx={{ p: 0.5 }}><TopIcon sx={{ fontSize: 14 }} /></ToggleButton>
@@ -630,7 +684,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
               <ToggleButtonGroup 
                 value={textOverlay.textAlign} 
                 exclusive 
-                onChange={(_, v) => v && handleTextChange('textAlign', v)} 
+                onChange={(_, v) => v && handleTextChangeWithTracking('textAlign', v)} 
                 size="small"
               >
                 <ToggleButton value="left" sx={{ p: 0.5 }}><AlignLeftIcon sx={{ fontSize: 14 }} /></ToggleButton>
@@ -645,7 +699,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>Size: {textOverlay.fontSize}</Typography>
               <Slider 
                 value={textOverlay.fontSize} 
-                onChange={(_, v) => handleTextChange('fontSize', v as number)} 
+                onChange={(_, v) => handleTextChangeWithTracking('fontSize', v as number)} 
                 min={16} 
                 max={72} 
                 size="small"
@@ -657,7 +711,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
               <input 
                 type="color" 
                 value={textOverlay.fontColor} 
-                onChange={(e) => handleTextChange('fontColor', e.target.value)} 
+                onChange={(e) => handleTextChangeWithTracking('fontColor', e.target.value)} 
                 style={{ width: 24, height: 24, border: 'none', cursor: 'pointer', borderRadius: 4, display: 'block' }} 
               />
             </Box>
@@ -667,7 +721,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
               <Select 
                 value={textOverlay.fontWeight} 
                 label="Wt" 
-                onChange={(e) => handleTextChange('fontWeight', e.target.value as 'normal' | 'bold')}
+                onChange={(e) => handleTextChangeWithTracking('fontWeight', e.target.value as 'normal' | 'bold')}
                 sx={{ fontSize: 11 }}
               >
                 <MenuItem value="normal">N</MenuItem>
@@ -685,7 +739,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
                 <IconButton 
                   key={bg.value} 
                   size="small" 
-                  onClick={() => handleTextChange('backgroundColor', bg.value)} 
+                  onClick={() => handleTextChangeWithTracking('backgroundColor', bg.value)} 
                   sx={{ 
                     width: 20, 
                     height: 20, 

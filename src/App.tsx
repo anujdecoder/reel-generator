@@ -97,11 +97,9 @@ function App() {
         img.id === imageId ? { ...img, textOverlay } : img
       )
     );
-    // Update selected image if it's the one being edited
-    if (selectedImage?.id === imageId) {
-      setSelectedImage(prev => prev ? { ...prev, textOverlay } : null);
-    }
-  }, [setImages, selectedImage]);
+    // Update selected image if it's the one being edited (use functional update to avoid stale closure)
+    setSelectedImage(prev => prev?.id === imageId ? { ...prev, textOverlay } : prev);
+  }, [setImages]);
 
   const handleSaveCrop = useCallback((imageId: string, cropSettings: CropSettings, croppedDataUrl: string) => {
     setImages((prev) =>
@@ -109,11 +107,9 @@ function App() {
         img.id === imageId ? { ...img, cropSettings, croppedDataUrl } : img
       )
     );
-    // Update selected image if it's the one being edited
-    if (selectedImage?.id === imageId) {
-      setSelectedImage(prev => prev ? { ...prev, cropSettings, croppedDataUrl } : null);
-    }
-  }, [setImages, selectedImage]);
+    // Update selected image if it's the one being edited (use functional update to avoid stale closure)
+    setSelectedImage(prev => prev?.id === imageId ? { ...prev, cropSettings, croppedDataUrl } : prev);
+  }, [setImages]);
 
   const handleSaveTiming = useCallback((imageId: string, duration: number | undefined, transitionType: TransitionType | undefined) => {
     setImages((prev) =>
@@ -121,11 +117,9 @@ function App() {
         img.id === imageId ? { ...img, duration, transitionType } : img
       )
     );
-    // Update selected image if it's the one being edited
-    if (selectedImage?.id === imageId) {
-      setSelectedImage(prev => prev ? { ...prev, duration, transitionType } : null);
-    }
-  }, [setImages, selectedImage]);
+    // Update selected image if it's the one being edited (use functional update to avoid stale closure)
+    setSelectedImage(prev => prev?.id === imageId ? { ...prev, duration, transitionType } : prev);
+  }, [setImages]);
 
   const handleMusicChange = useCallback((music: MusicTrack | undefined) => {
     setConfig((prev) => ({ ...prev, music }));
