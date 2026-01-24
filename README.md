@@ -50,6 +50,45 @@ npm run preview
 
 The built files will be in the `dist` directory.
 
+### CLI Video Generation
+
+Generate videos directly from the command line using headless browser automation. This approach reuses the existing web app logic for maximum compatibility and feature support.
+
+```bash
+# Install dependencies (includes Puppeteer for headless browsing)
+npm install
+
+# Generate video from config (note the -- separator for npm arguments)
+npm run generate -- samples/sample-config.json -o my-reel.mp4
+
+# For debugging, run with visible browser
+npm run generate -- --no-headless samples/sample-config.json -o my-reel.mp4
+
+# Or use the script directly
+npx tsx src/cli/generate.ts samples/sample-config.json -o my-reel.mp4
+```
+
+The CLI accepts the same JSON config format as the web interface. See the JSON Schema section above for details.
+
+**How it works:**
+1. Starts a local development server
+2. Launches a headless Chrome browser
+3. Loads the reel generator web app
+4. Automatically imports your JSON config
+5. Triggers video generation using the same logic as the web interface
+6. Downloads the completed video file
+
+**Requirements:**
+- Chrome/Chromium browser dependencies (automatically installed with Puppeteer)
+- Sufficient system resources for headless browsing
+
+**Note:** CLI generation may take several minutes depending on video length and quality settings. The headless browser provides real-time progress updates during generation.
+
+**Troubleshooting:**
+- For complex videos with music, the web interface may work better than headless mode
+- If generation fails, try with a simpler config first
+- Ensure your system has sufficient resources for video encoding
+
 ## Usage
 
 ### Manual Upload

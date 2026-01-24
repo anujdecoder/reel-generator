@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# CLI temp files
+temp-assets/
+temp-frames/
+temp-music.mp3
