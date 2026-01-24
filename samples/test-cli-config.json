@@ -1,6 +1,58 @@
 {
+  "globalConfig": {
+    "transitionDuration": 600,
+    "imageDuration": 2500,
+    "transitionType": "fade",
+    "videoDimensions": "1080x1080",
+    "videoQuality": "maximum"
+  },
   "images": [
-    { "url": "https://picsum.photos/1080/1920?random=1" },
-    { "url": "https://picsum.photos/1080/1920?random=2" }
-  ]
+    {
+      "url": "https://picsum.photos/1080/1080?random=10",
+      "duration": 3000,
+      "text": {
+        "content": "Summer Vibes ☀️",
+        "position": "bottom",
+        "fontSize": 52,
+        "fontColor": "#ffffff",
+        "backgroundColor": "rgba(255, 165, 0, 0.7)"
+      }
+    },
+    {
+      "url": "https://picsum.photos/1080/1080?random=11",
+      "duration": 2500,
+      "transitionType": "slide",
+      "text": {
+        "content": "Beach Days",
+        "position": "center",
+        "fontSize": 48
+      }
+    },
+    {
+      "url": "https://picsum.photos/1080/1080?random=12",
+      "duration": 2500,
+      "text": {
+        "content": "Good Times",
+        "position": "top",
+        "fontSize": 44,
+        "fontColor": "#00ffff"
+      }
+    },
+    {
+      "url": "https://picsum.photos/1080/1080?random=13",
+      "duration": 3000,
+      "transitionType": "zoom",
+      "text": {
+        "content": "Making Memories 📸",
+        "position": "bottom",
+        "fontSize": 46
+      }
+    }
+  ],
+  "music": {
+    "url": "https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3",
+    "startTime": 0,
+    "endTime": 5,
+    "volume": 0.5
+  }
 }

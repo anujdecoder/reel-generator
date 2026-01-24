@@ -135,6 +135,8 @@ async function generateReel(configPath: string, outputPath: string, keepBrowser:
         console.log('📼 Encoding video...');
       } else if (text.includes('Conversion complete') || text.includes('Video complete')) {
         console.log('✅ Video encoding complete!');
+      } else if (text.includes('Download the React DevTools')) {
+        // Ignore React devtools message
       }
     });
 
@@ -193,17 +195,44 @@ async function generateReel(configPath: string, outputPath: string, keepBrowser:
 
     console.log('✅ Config imported and images loaded!');
 
+    // Open preview modal
+    console.log('🎬 Opening preview modal...');
+
+    // Find and click "Preview & Generate" button
+    const previewButton = await page.evaluateHandle(() => {
+      const buttons = Array.from(document.querySelectorAll('button'));
+      return buttons.find(btn => btn.textContent?.includes('Preview & Generate'));
+    });
+
+    if (!previewButton) {
+      throw new Error('Could not find "Preview & Generate" button');
+    }
+
+    await previewButton.click();
+
+    // Wait for modal to open
+    console.log('⏳ Waiting for preview modal to open...');
+    await page.waitForFunction(() => {
+      const modal = document.querySelector('[role="dialog"]');
+      return modal && modal.querySelector('button') !== null;
+    }, { timeout: 10000 });
+
+    console.log('✅ Preview modal opened successfully!');
+
     // Start generation
     console.log('🎥 Starting video generation...');
 
-    // Find and click generate button
+    // Find and click generate button in the modal
     const generateButton = await page.evaluateHandle(() => {
-      const buttons = Array.from(document.querySelectorAll('button'));
+      const modal = document.querySelector('[role="dialog"]');
+      if (!modal) return null;
+
+      const buttons = Array.from(modal.querySelectorAll('button'));
       return buttons.find(btn => btn.textContent?.includes('Generate'));
     });
 
     if (!generateButton) {
-      throw new Error('Could not find generate button');
+      throw new Error('Could not find generate button in modal');
     }
 
     await generateButton.click();

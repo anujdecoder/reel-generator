@@ -75,9 +75,10 @@ The CLI accepts the same JSON config format as the web interface. See the JSON S
 2. Launches a visible Chrome browser (for reliable downloads)
 3. Loads the reel generator web app
 4. Automatically imports your JSON config
-5. Clicks "Generate Video" to start processing
-6. Monitors your Downloads folder for the completed video
-7. Moves the video to your specified output location
+5. Clicks "Preview & Generate" to open the generation modal
+6. Clicks "Generate MP4" to start video processing
+7. Monitors your Downloads folder for the completed video
+8. Moves the video to your specified output location
 
 **Requirements:**
 - Chrome/Chromium browser dependencies (automatically installed with Puppeteer)
