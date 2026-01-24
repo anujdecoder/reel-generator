@@ -50,9 +50,9 @@
     }
   ],
   "music": {
-    "url": "https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3",
-    "startTime": 0,
-    "endTime": 5,
-    "volume": 0.5
+    "url": "http://localhost:5173/ff-16b-2c-44100hz.mp3",
+    "startTime": 30,
+    "endTime": 45,
+    "volume": 0.7
   }
 }
