@@ -10,6 +10,103 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+// Utility function to click button with retry logic
+async function clickButtonWithRetry(page: any, buttonText: string, maxRetries: number = 3, retryDelay: number = 5000): Promise<boolean> {
+  // Try multiple variations of the button text
+  const textVariations = [
+    buttonText,
+    buttonText.toLowerCase(),
+    buttonText.toUpperCase(),
+    buttonText.replace('&', 'and'),
+    buttonText.replace('and', '&'),
+  ];
+
+  // Remove duplicates
+  const uniqueVariations = [...new Set(textVariations)];
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    for (const text of uniqueVariations) {
+      console.log(`🔍 Attempting to find and click button with text containing "${text}" (attempt ${attempt}/${maxRetries})...`);
+
+      const buttonClicked = await page.evaluate((searchText: string) => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const button = buttons.find(btn =>
+          btn.textContent?.toLowerCase().includes(searchText.toLowerCase())
+        );
+
+        if (button && !button.disabled) {
+          button.click();
+          return true;
+        }
+        return false;
+      }, text);
+
+      if (buttonClicked) {
+        console.log(`✅ Successfully clicked button with text containing "${text}"`);
+        return true;
+      }
+    }
+
+    if (attempt < maxRetries) {
+      console.log(`⏳ Button not found or not clickable. Waiting ${retryDelay/1000}s before retry...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+  }
+
+  console.error(`❌ Failed to find or click button with text variations of "${buttonText}" after ${maxRetries} attempts`);
+  return false;
+}
+
+// Utility function to click button in modal with retry logic
+async function clickModalButtonWithRetry(page: any, buttonText: string, maxRetries: number = 3, retryDelay: number = 5000): Promise<boolean> {
+  // Try multiple variations of the button text
+  const textVariations = [
+    buttonText,
+    buttonText.toLowerCase(),
+    buttonText.toUpperCase(),
+    buttonText.replace('&', 'and'),
+    buttonText.replace('and', '&'),
+  ];
+
+  // Remove duplicates
+  const uniqueVariations = [...new Set(textVariations)];
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    for (const text of uniqueVariations) {
+      console.log(`🔍 Attempting to find and click button with text containing "${text}" in modal (attempt ${attempt}/${maxRetries})...`);
+
+      const buttonClicked = await page.evaluate((searchText: string) => {
+        const modal = document.querySelector('[role="dialog"]') || document.querySelector('.MuiDialog-root');
+        if (!modal) return false;
+
+        const buttons = Array.from(modal.querySelectorAll('button'));
+        const button = buttons.find(btn =>
+          btn.textContent?.toLowerCase().includes(searchText.toLowerCase())
+        );
+
+        if (button && !button.disabled) {
+          button.click();
+          return true;
+        }
+        return false;
+      }, text);
+
+      if (buttonClicked) {
+        console.log(`✅ Successfully clicked button with text containing "${text}" in modal`);
+        return true;
+      }
+    }
+
+    if (attempt < maxRetries) {
+      console.log(`⏳ Button not found in modal. Waiting ${retryDelay/1000}s before retry...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+  }
+
+  console.error(`❌ Failed to find or click button with text variations of "${buttonText}" in modal after ${maxRetries} attempts`);
+  return false;
+}
+
 // CLI program
 const program = new Command();
 
@@ -159,30 +256,43 @@ async function generateReel(configPath: string, outputPath: string, keepBrowser:
     console.log('📤 Uploading configuration...');
 
     // Click the config import button
-    const importButton = await page.evaluateHandle(() => {
-      const buttons = Array.from(document.querySelectorAll('button'));
-      return buttons.find(btn => btn.textContent?.includes('Import from JSON'));
-    });
-    if (!importButton) {
-      throw new Error('Could not find "Import from JSON" button');
+    const importClicked = await clickButtonWithRetry(page, 'Import from JSON');
+    if (!importClicked) {
+      throw new Error('Could not find or click "Import from JSON" button - check if the web app loaded correctly');
     }
-    await importButton.click();
 
-    // Wait for modal to open
-    await page.waitForSelector('textarea', { timeout: 5000 });
+    // Wait for modal to open and debug what buttons are available
+    console.log('⏳ Waiting for config import modal to open...');
+    await page.waitForSelector('textarea', { timeout: 10000 });
+
+    // Debug: log buttons in the modal
+    const modalButtons = await page.evaluate(() => {
+      const modal = document.querySelector('[role="dialog"]') || document.querySelector('.MuiDialog-root');
+      if (modal) {
+        const buttons = Array.from(modal.querySelectorAll('button'));
+        return buttons.map(btn => ({
+          text: btn.textContent?.trim(),
+          disabled: btn.disabled,
+          visible: btn.offsetWidth > 0 && btn.offsetHeight > 0
+        }));
+      }
+      return [];
+    });
+
+    if (modalButtons.length > 0) {
+      console.log('📋 Buttons found in modal:', modalButtons);
+    } else {
+      console.log('⚠️  No buttons found in modal yet, will retry...');
+    }
 
     // Paste config into textarea
     await page.type('textarea', configContent);
 
-    // Click import button
-    const importConfirmButton = await page.evaluateHandle(() => {
-      const buttons = Array.from(document.querySelectorAll('button'));
-      return buttons.find(btn => btn.textContent?.includes('Import & Load'));
-    });
-    if (!importConfirmButton) {
-      throw new Error('Could not find "Import & Load" button');
+    // Click import confirmation button
+    const importConfirmClicked = await clickButtonWithRetry(page, 'Import & Load');
+    if (!importConfirmClicked) {
+      throw new Error('Could not find or click import confirmation button - check if config is valid JSON');
     }
-    await importConfirmButton.click();
 
     // Wait for modal to close and images to be processed
     console.log('🖼️  Waiting for config import and image processing...');
@@ -195,25 +305,24 @@ async function generateReel(configPath: string, outputPath: string, keepBrowser:
 
     console.log('✅ Config imported and images loaded!');
 
+    // Wait for "Preview & Generate" button to appear (indicates config loaded)
+    console.log('🎬 Waiting for "Preview & Generate" button to confirm config is loaded...');
+    await page.waitForFunction(() => {
+      const buttons = Array.from(document.querySelectorAll('button'));
+      return buttons.some(btn => btn.textContent?.includes('Preview & Generate'));
+    }, { timeout: 30000 });
+
     // Open preview modal
     console.log('🎬 Opening preview modal...');
-
-    // Find and click "Preview & Generate" button
-    const previewButton = await page.evaluateHandle(() => {
-      const buttons = Array.from(document.querySelectorAll('button'));
-      return buttons.find(btn => btn.textContent?.includes('Preview & Generate'));
-    });
-
-    if (!previewButton) {
-      throw new Error('Could not find "Preview & Generate" button');
+    const previewClicked = await clickButtonWithRetry(page, 'Preview & Generate');
+    if (!previewClicked) {
+      throw new Error('Could not find or click "Preview & Generate" button - check if config was imported successfully');
     }
-
-    await previewButton.click();
 
     // Wait for modal to open
     console.log('⏳ Waiting for preview modal to open...');
     await page.waitForFunction(() => {
-      const modal = document.querySelector('[role="dialog"]');
+      const modal = document.querySelector('[role="dialog"]') || document.querySelector('.MuiDialog-root');
       return modal && modal.querySelector('button') !== null;
     }, { timeout: 10000 });
 
@@ -222,20 +331,11 @@ async function generateReel(configPath: string, outputPath: string, keepBrowser:
     // Start generation
     console.log('🎥 Starting video generation...');
 
-    // Find and click generate button in the modal
-    const generateButton = await page.evaluateHandle(() => {
-      const modal = document.querySelector('[role="dialog"]');
-      if (!modal) return null;
-
-      const buttons = Array.from(modal.querySelectorAll('button'));
-      return buttons.find(btn => btn.textContent?.includes('Generate'));
-    });
-
-    if (!generateButton) {
-      throw new Error('Could not find generate button in modal');
+    // Find and click "Generate MP4" button in the modal
+    const buttonFound = await clickModalButtonWithRetry(page, 'Generate MP4');
+    if (!buttonFound) {
+      throw new Error('Could not find or click "Generate MP4" button in modal - check if preview modal opened correctly');
     }
-
-    await generateButton.click();
 
     // Wait for download to complete
     console.log('⏳ Waiting for video download to complete...');
