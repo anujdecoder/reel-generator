@@ -1,0 +1,10 @@
+{
+  "globalConfig": {
+    "imageDuration": 1000,
+    "videoDimensions": "720x1280",
+    "videoQuality": "standard"
+  },
+  "images": [
+    { "url": "https://picsum.photos/720/1280?random=1" }
+  ]
+}
