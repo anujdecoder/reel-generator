@@ -15,7 +15,7 @@ import {
   TextFields as TextIcon,
   Timer as TimerIcon,
 } from '@mui/icons-material';
-import type { ImageItem } from '../types';
+import type { ImageItem } from '../../types';
 
 interface ImageSidebarProps {
   images: ImageItem[];

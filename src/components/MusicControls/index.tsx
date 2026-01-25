@@ -16,7 +16,7 @@ import {
   VolumeUp as VolumeIcon,
   DragIndicator as DragIcon,
 } from '@mui/icons-material';
-import type { MusicTrack } from '../types';
+import type { MusicTrack } from '../../types';
 
 interface MusicControlsProps {
   music: MusicTrack;

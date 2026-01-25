@@ -58,11 +58,17 @@ Generate videos directly from the command line using browser automation. This ap
 # Install dependencies
 npm install
 
-# Generate video from config
+# Generate video from config (headless mode)
 npm run generate -- samples/sample-config.json -o my-reel.mp4
 
 # Keep browser open after completion for debugging
 npm run generate -- samples/sample-config.json -o my-reel.mp4 --keep-browser
+
+# Show browser window during generation
+npm run generate -- samples/sample-config.json -o my-reel.mp4 --show-browser
+
+# Set custom timeout for long videos (default: 5 minutes)
+npm run generate -- samples/sample-config.json -o my-reel.mp4 --timeout 1200000
 
 # Or use the script directly
 npx tsx src/cli/generate.ts samples/sample-config.json -o my-reel.mp4
@@ -72,18 +78,18 @@ The CLI accepts the same JSON config format as the web interface. See the JSON S
 
 **How it works:**
 1. Starts a local development server
-2. Launches a visible Chrome browser (for reliable downloads)
+2. Launches a Chrome browser (headless by default, visible with --show-browser)
 3. Loads the reel generator web app
 4. Automatically imports your JSON config
 5. Clicks "Preview & Generate" to open the generation modal
 6. Clicks "Generate MP4" to start video processing
-7. Monitors your Downloads folder for the completed video
-8. Moves the video to your specified output location
+7. Captures the generated video file
+8. Saves the video to your specified output location
 
 **Note:** The CLI automates all the manual steps you would normally do in the browser, from config import through video generation to download monitoring. If buttons are not immediately available, the CLI will retry up to 3 times with 5-second delays.
 
 **Requirements:**
-- Chrome/Chromium browser dependencies (automatically installed with Puppeteer)
+- Chrome/Chromium browser dependencies (automatically installed with Playwright)
 - Sufficient system resources for headless browsing
 
 **Note:** CLI generation may take several minutes depending on video length and quality settings. The headless browser provides real-time progress updates during generation.
@@ -258,40 +264,61 @@ Cross-Origin-Embedder-Policy: require-corp
 reel-generator/
 ├── samples/                        # Sample JSON config files
 │   ├── sample-config.json          # Full-featured example
+│   ├── sample-config-minimal.json  # Minimal example
 │   ├── sample-config-with-music.json # With background music
-│   └── sample-config-minimal.json  # Minimal example
-├── src/
+│   ├── load-test-config.json       # 100-image load test config
+│   ├── small-test-config.json      # Small test config
+│   ├── test-cli-config.json        # CLI test config
+│   └── tiny-test-config.json       # Tiny test config
+├── scripts/                        # Utility scripts and tools
+│   ├── run-load-test.sh            # Load test runner script
+│   ├── verify-load-test.mjs        # Load test verification script
+│   └── LOAD_TEST_README.md         # Load test documentation
+├── src/                           # Source code
+│   ├── cli/
+│   │   └── generate.ts             # CLI video generation tool
 │   ├── components/
-│   │   ├── ImageUpload.tsx       # Drag & drop image upload
-│   │   ├── ImageSidebar.tsx      # Sidebar with reorderable image list
-│   │   ├── ImageEditor.tsx       # Main editor with inline crop/text editing
-│   │   ├── MusicUpload.tsx       # Audio upload component
-│   │   ├── MusicControls.tsx     # Inline music trimming controls
-│   │   ├── ReelPreview.tsx       # Preview & video generation
-│   │   ├── PreviewModal.tsx      # Preview modal with settings
-│   │   ├── ConfigImport.tsx      # JSON config import dialog
-│   │   └── index.ts              # Component exports
+│   │   ├── ImageUpload.tsx         # Drag & drop image upload
+│   │   ├── ImageSidebar.tsx        # Sidebar with reorderable image list
+│   │   ├── ImageEditor.tsx         # Main editor with inline crop/text editing
+│   │   ├── MusicUpload.tsx         # Audio upload component
+│   │   ├── MusicControls.tsx       # Inline music trimming controls
+│   │   ├── ReelPreview.tsx         # Preview & video generation
+│   │   ├── PreviewModal.tsx        # Preview modal with settings
+│   │   ├── ConfigImport.tsx        # JSON config import dialog
+│   │   └── index.ts                # Component exports
 │   ├── hooks/
-│   │   ├── useImageStorage.ts    # IndexedDB for images
-│   │   └── useLocalStorage.ts    # localStorage for config
+│   │   ├── useImageStorage.ts      # IndexedDB for images
+│   │   ├── useLocalStorage.ts      # localStorage for config
+│   │   └── index.ts                # Hook exports
 │   ├── types/
-│   │   └── index.ts              # TypeScript interfaces
+│   │   └── index.ts                # TypeScript interfaces
 │   ├── test/
-│   │   ├── setup.ts              # Test setup with mocks
-│   │   ├── testUtils.ts          # Test helper functions
-│   │   ├── configImport.test.ts  # Config import tests
-│   │   ├── previewWindow.test.ts # Preview window tests
+│   │   ├── setup.ts                # Test setup with mocks
+│   │   ├── testUtils.ts            # Test helper functions
+│   │   ├── configImport.test.ts    # Config import tests
+│   │   ├── previewWindow.test.ts   # Preview window tests
 │   │   ├── videoGeneration.test.ts # Video generation tests
 │   │   ├── videoRendering.test.ts  # Rendering tests
 │   │   └── videoIntegration.test.ts # Integration tests
 │   ├── utils/
-│   │   ├── helpers.ts            # Utility functions
-│   │   └── videoConverter.ts     # FFmpeg.wasm integration
-│   ├── App.tsx                   # Main application
-│   └── index.css                 # Application styles
-├── vite.config.ts                # Vite config with headers
-├── vitest.config.ts              # Test configuration
-└── package.json
+│   │   ├── helpers.ts              # Utility functions
+│   │   └── videoConverter.ts       # FFmpeg.wasm integration
+│   ├── App.tsx                     # Main application
+│   └── index.css                   # Application styles
+├── public/                         # Static assets
+│   ├── ff-16b-2c-44100hz.mp3       # Default audio file
+│   └── vite.svg                    # Vite logo
+├── tsconfig.json                   # Root TypeScript config
+├── tsconfig.app.json               # Application TypeScript config
+├── tsconfig.node.json              # Node.js TypeScript config
+├── vite.config.ts                  # Vite build configuration
+├── vitest.config.ts                # Test configuration
+├── eslint.config.js                # ESLint configuration
+├── package.json                    # Node.js dependencies and scripts
+├── index.html                      # Main HTML file
+├── .gitignore                      # Git ignore patterns
+└── README.md                       # Project documentation
 ```
 
 ## Browser Support

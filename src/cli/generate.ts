@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
 import { Command } from 'commander';
-import puppeteer from 'puppeteer';
+import { chromium } from 'playwright';
 import fs from 'fs-extra';
 import path from 'path';
 import os from 'os';
@@ -117,9 +117,11 @@ program
   .argument('<config>', 'Path to JSON config file')
   .option('-o, --output <file>', 'Output file path', 'output.mp4')
   .option('--keep-browser', 'Keep browser open after completion (for debugging)')
-  .action(async (configPath: string, options: { output: string; keepBrowser: boolean }) => {
+  .option('--show-browser', 'Show browser window during generation (not headless)')
+  .option('-t, --timeout <ms>', 'Timeout for video generation in milliseconds', '300000')
+  .action(async (configPath: string, options: { output: string; keepBrowser: boolean; showBrowser: boolean; timeout: string }) => {
     try {
-      await generateReel(configPath, options.output, options.keepBrowser);
+      await generateReel(configPath, options.output, options.keepBrowser, options.showBrowser, parseInt(options.timeout));
     } catch (error) {
       console.error('❌ Error:', error instanceof Error ? error.message : error);
       process.exit(1);
@@ -129,8 +131,7 @@ program
 program.parse();
 
 // Main generation function
-// Main generation function
-async function generateReel(configPath: string, outputPath: string, keepBrowser: boolean = false) {
+async function generateReel(configPath: string, outputPath: string, keepBrowser: boolean = false, showBrowser: boolean = false, timeoutMs: number = 300000) {
   console.log('🚀 Starting reel generator automation...');
 
   // Load config
@@ -173,28 +174,37 @@ async function generateReel(configPath: string, outputPath: string, keepBrowser:
 
   let browser;
   try {
-    // Launch visible browser (not headless)
-    console.log('🖥️  Launching browser...');
-    browser = await puppeteer.launch({
-      headless: false, // Always visible for downloads to work
+    // Launch browser (headless for server environments unless --show-browser is specified)
+    const isHeadless = !showBrowser;
+    console.log(`🖥️  Launching browser (${isHeadless ? 'headless' : 'visible'})...`);
+    browser = await chromium.launch({
+      headless: isHeadless,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-web-security',
         '--disable-features=VizDisplayCompositor',
         '--disable-accelerated-video-decode'
-      ],
-      defaultViewport: null,
-      ignoreDefaultArgs: ['--disable-extensions']
+      ]
     });
 
     const page = await browser.newPage();
 
-    // Set up download monitoring
+    // Set up download handling - monitor both events and filesystem
     let downloadComplete = false;
     let downloadedFilePath = '';
 
-    // Monitor downloads directory for new video files
+    // Listen for download events (works in headless mode for some download types)
+    page.on('download', async (download) => {
+      console.log(`📥 Download started: ${download.suggestedFilename()}`);
+      const downloadPath = path.join(downloadsDir, download.suggestedFilename());
+      await download.saveAs(downloadPath);
+      downloadedFilePath = downloadPath;
+      downloadComplete = true;
+      console.log(`✅ Download completed: ${download.suggestedFilename()}`);
+    });
+
+    // Also monitor downloads directory as fallback (for programmatic downloads)
     const watcher = fs.watch(downloadsDir, (eventType, filename) => {
       if (eventType === 'rename' && filename && filename.endsWith('.mp4')) {
         const filePath = path.join(downloadsDir, filename);
@@ -214,6 +224,62 @@ async function generateReel(configPath: string, outputPath: string, keepBrowser:
       }
     });
 
+    // Expose function to save blob data
+    await page.exposeFunction('saveVideoBlob', async (blobData: string, filename: string) => {
+      const buffer = Buffer.from(blobData, 'base64');
+      const filepath = outputPath;
+      await fs.writeFile(filepath, buffer);
+      downloadedFilePath = filepath;
+      downloadComplete = true;
+      console.log(`✅ Video saved to: ${filepath}`);
+    });
+
+    // Inject script to handle downloads in headless mode
+    await page.addScriptTag({
+      content: `
+        // Override the download function to capture blob data
+        window.capturedBlob = null;
+        window.capturedFilename = null;
+
+        // Override the video generation download
+        const originalCreateObjectURL = URL.createObjectURL;
+        URL.createObjectURL = function(blob) {
+          if (blob instanceof Blob && (blob.type.includes('video') || blob.type.includes('mp4') || blob.type.includes('webm'))) {
+            window.capturedBlob = blob;
+            console.log('🎥 Video blob captured for headless download');
+          }
+          return originalCreateObjectURL.apply(this, arguments);
+        };
+
+        // Override the download link click
+        const originalAddEventListener = HTMLElement.prototype.addEventListener;
+        HTMLElement.prototype.addEventListener = function(type, listener, options) {
+          if (type === 'click' && this.tagName === 'A' && this.download) {
+            const link = this;
+            const handleClick = async function(e) {
+              if (window.capturedBlob) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Convert blob to base64 and save via exposed function
+                const reader = new FileReader();
+                reader.onload = function() {
+                  const arrayBuffer = reader.result;
+                  const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                  window.saveVideoBlob(base64, link.download);
+                };
+                reader.readAsArrayBuffer(window.capturedBlob);
+                return false;
+              }
+              return listener.call(this, e);
+            };
+            return originalAddEventListener.call(this, type, handleClick, options);
+          }
+          return originalAddEventListener.call(this, type, listener, options);
+        };
+      `
+    });
+
     // Listen for console messages to track progress
     page.on('console', (msg) => {
       const text = msg.text();
@@ -222,6 +288,8 @@ async function generateReel(configPath: string, outputPath: string, keepBrowser:
         console.error('❌ Page error:', text);
       } else if (text.includes('[Video] Using direct FFmpeg encoding')) {
         console.log('🎬 Starting video encoding...');
+      } else if (text.includes('Video blob captured for headless download')) {
+        console.log('📦 Video blob captured!');
       } else if (text.includes('Generating frames:')) {
         const match = text.match(/Generating frames: (\d+)\/(\d+)/);
         if (match) {
@@ -286,7 +354,8 @@ async function generateReel(configPath: string, outputPath: string, keepBrowser:
     }
 
     // Paste config into textarea
-    await page.type('textarea', configContent);
+    await page.waitForSelector('textarea', { timeout: 10000 });
+    await page.fill('textarea', configContent);
 
     // Click import confirmation button
     const importConfirmClicked = await clickButtonWithRetry(page, 'Import & Load');
@@ -305,12 +374,15 @@ async function generateReel(configPath: string, outputPath: string, keepBrowser:
 
     console.log('✅ Config imported and images loaded!');
 
-    // Wait for "Preview & Generate" button to appear (indicates config loaded)
-    console.log('🎬 Waiting for "Preview & Generate" button to confirm config is loaded...');
+    // Wait for "Preview & Generate" button to be enabled (indicates config loaded and images processed)
+    console.log('🎬 Waiting for "Preview & Generate" button to be enabled...');
     await page.waitForFunction(() => {
       const buttons = Array.from(document.querySelectorAll('button'));
-      return buttons.some(btn => btn.textContent?.includes('Preview & Generate'));
-    }, { timeout: 30000 });
+      const previewButton = buttons.find(btn => btn.textContent?.includes('Preview & Generate'));
+      return previewButton && !previewButton.disabled;
+    }, { timeout: 120000 }); // Give more time for images to load
+
+    console.log('✅ Preview & Generate button is now enabled!');
 
     // Open preview modal
     console.log('🎬 Opening preview modal...');
@@ -338,20 +410,19 @@ async function generateReel(configPath: string, outputPath: string, keepBrowser:
     }
 
     // Wait for download to complete
-    console.log('⏳ Waiting for video download to complete...');
+    console.log(`⏳ Waiting for video generation to complete (timeout: ${(timeoutMs/1000/60).toFixed(1)} minutes)...`);
 
-    // Wait for the file to appear in downloads
+    // Wait for the exposed function to be called
     let waitTime = 0;
-    const maxWaitTime = 300000; // 5 minutes
     const checkInterval = 1000; // Check every second
 
-    while (!downloadComplete && waitTime < maxWaitTime) {
+    while (!downloadComplete && waitTime < timeoutMs) {
       await new Promise(resolve => setTimeout(resolve, checkInterval));
       waitTime += checkInterval;
     }
 
     if (!downloadComplete) {
-      throw new Error('Video download did not complete within timeout');
+      throw new Error(`Video generation did not complete within ${timeoutMs/1000/60} minute timeout`);
     }
 
     // Stop watching downloads
