@@ -34,6 +34,19 @@ export interface ImageItem {
   transitionType?: TransitionType; // Transition to next image
 }
 
+export interface TextItem {
+  id: string;
+  content: string;
+  animationType: AnimationType;
+  duration: number; // How long this text shows in ms
+  fontSize: number;
+  fontColor: string;
+  backgroundColor?: string; // Optional background
+  fontWeight: 'normal' | 'bold';
+  textAlign: 'left' | 'center' | 'right';
+  position: TextPosition;
+}
+
 export interface MusicTrack {
   id: string;
   name: string;
@@ -55,7 +68,19 @@ export interface ReelConfig {
   videoDimensions: VideoDimensions; // Output video dimensions
 }
 
+export interface TextAnimationConfig {
+  textDuration: number; // How long each text shows in ms
+  animationType: AnimationType; // Default animation
+  music?: MusicTrack;
+  outputFormat: VideoFormat;
+  videoQuality: VideoQuality;
+  useDirectEncoding: boolean;
+  videoDimensions: VideoDimensions;
+  backgroundColor?: string; // Background color for text video
+}
+
 export type TransitionType = 'fade' | 'slide' | 'zoom' | 'none';
+export type AnimationType = 'fadeIn' | 'slideIn' | 'zoomIn' | 'typewriter' | 'bounce' | 'none';
 export type VideoFormat = 'webm' | 'mp4';
 export type VideoQuality = 'standard' | 'high' | 'maximum';
 export type VideoDimensions = '1080x1920' | '1080x1080' | '1080x1350' | '1920x1080' | '720x1280' | '720x720';
@@ -94,6 +119,30 @@ export interface ReelConfigJSON {
   };
   images: ConfigImageItem[];
   music?: ConfigMusicItem;
+}
+
+export interface TextAnimationConfigJSON {
+  globalConfig?: {
+    textDuration?: number; // ms
+    animationType?: AnimationType;
+    videoDimensions?: VideoDimensions;
+    videoQuality?: VideoQuality;
+    backgroundColor?: string;
+  };
+  texts: ConfigTextItem[];
+  music?: ConfigMusicItem;
+}
+
+export interface ConfigTextItem {
+  content: string;
+  duration?: number; // ms, uses global if not set
+  animationType?: AnimationType;
+  fontSize?: number;
+  fontColor?: string;
+  backgroundColor?: string;
+  fontWeight?: 'normal' | 'bold';
+  textAlign?: 'left' | 'center' | 'right';
+  position?: TextPosition;
 }
 
 export const VIDEO_DIMENSION_PRESETS: Record<VideoDimensions, {

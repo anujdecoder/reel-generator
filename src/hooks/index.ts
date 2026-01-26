@@ -1,7 +1,11 @@
 export { useLocalStorage } from './useLocalStorage';
 export { useImageStorage, clearAllImages } from './useImageStorage';
+export { useTextStorage } from './useTextStorage';
 export { useReelState } from './useReelState';
+export { useTextAnimationState } from './useTextAnimationState';
 export { useVideoCalculation } from './useVideoCalculation';
+export { useTextVideoCalculation } from './useTextVideoCalculation';
 export { useImageOperations } from './useImageOperations';
+export { useTextOperations } from './useTextOperations';
 export { useMusicManagement } from './useMusicManagement';
 export { useConfigImport } from './useConfigImport';
