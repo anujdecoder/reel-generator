@@ -134,24 +134,30 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
     }
     ctx.globalAlpha = animationStyle.opacity || 1;
 
-    // Word wrap the text
-    const words = displayText.split(' ');
+    // Preserve newlines and word wrap the text
+    const paragraphs = displayText.split('\n');
     const lines: string[] = [];
-    let currentLine = '';
 
-    for (const word of words) {
-      const testLine = currentLine + (currentLine ? ' ' : '') + word;
-      const metrics = ctx.measureText(testLine);
-      const testWidth = metrics.width;
+    for (const paragraph of paragraphs) {
+      const words = paragraph.split(' ');
+      let currentLine = '';
 
-      if (testWidth > dimensions.width * 0.8 && currentLine) {
+      for (const word of words) {
+        const testLine = currentLine + (currentLine ? ' ' : '') + word;
+        const metrics = ctx.measureText(testLine);
+        const testWidth = metrics.width;
+
+        if (testWidth > dimensions.width * 0.8 && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+      if (currentLine) {
         lines.push(currentLine);
-        currentLine = word;
-      } else {
-        currentLine = testLine;
       }
     }
-    lines.push(currentLine);
 
     // Draw each line
     const lineHeight = text.fontSize * 1.2;
@@ -199,6 +205,13 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
     setIsPlayingPreview(true);
     setCurrentTextIndex(0);
 
+    // Start audio playback if music is available
+    if (config.music && audioRef?.current) {
+      audioRef.current.currentTime = config.music.startTime || 0;
+      audioRef.current.volume = config.music.volume || 1;
+      audioRef.current.play().catch(console.error);
+    }
+
     let startTime = Date.now();
 
     const animate = () => {
@@ -241,6 +254,13 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
       if (elapsed >= videoSpecs.totalDuration) {
         setIsPlayingPreview(false);
         setCurrentTextIndex(0);
+
+        // Stop audio playback
+        if (audioRef?.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        }
+
         return;
       }
 
@@ -253,6 +273,13 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
   const stopPreview = useCallback(() => {
     setIsPlayingPreview(false);
     setCurrentTextIndex(0);
+
+    // Stop audio playback
+    if (audioRef?.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
@@ -370,6 +397,11 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
       }
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+      }
+      // Stop audio playback
+      if (audioRef?.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
       }
     };
   }, [generatedVideoUrl]);
