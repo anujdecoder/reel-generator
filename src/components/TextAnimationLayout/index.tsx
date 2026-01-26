@@ -34,6 +34,7 @@ interface TextAnimationLayoutProps {
   onMusicChange: (music: any) => void;
   onConfigChange: (config: TextAnimationConfig) => void;
   onPreviewClose: () => void;
+  audioRef?: React.RefObject<HTMLAudioElement | null>;
 }
 
 export const TextAnimationLayout: React.FC<TextAnimationLayoutProps> = ({
@@ -54,6 +55,7 @@ export const TextAnimationLayout: React.FC<TextAnimationLayoutProps> = ({
   onMusicChange,
   onConfigChange,
   onPreviewClose,
+  audioRef,
 }) => {
   return (
     <Box sx={layoutStyles.root}>
@@ -99,6 +101,7 @@ export const TextAnimationLayout: React.FC<TextAnimationLayoutProps> = ({
           config={config}
           onConfigChange={onConfigChange}
           onClose={onPreviewClose}
+          audioRef={audioRef}
         />
       )}
 

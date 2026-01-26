@@ -21,5 +21,6 @@ export { TextActionBar } from './TextActionBar';
 export { TextEditorLayout } from './TextEditorLayout';
 export { TextEmptyState } from './TextEmptyState';
 export { TextAnimationLayout } from './TextAnimationLayout';
+export { TextAnimationPreview } from './TextAnimationPreview';
 export { Navigation } from './Navigation';
 

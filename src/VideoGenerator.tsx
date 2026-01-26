@@ -47,6 +47,7 @@ export function VideoGenerator() {
         onMusicChange={handleMusicChange}
         onConfigChange={textState.setConfig}
         onPreviewClose={() => textState.setShowPreview(false)}
+        audioRef={audioRef}
       />
 
       {/* Hidden audio element for music playback */}
