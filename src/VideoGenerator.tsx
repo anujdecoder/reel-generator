@@ -23,6 +23,7 @@ export function VideoGenerator() {
   });
 
   const { audioRef, handleMusicChange } = useMusicManagement({
+    config: textState.config,
     setConfig: textState.setConfig,
     setShowMusicUpload: textState.setShowMusicUpload,
   });
@@ -32,7 +33,6 @@ export function VideoGenerator() {
     setConfig: textState.setConfig,
     setSelectedText: textState.setSelectedText,
     setShowConfigImport: textState.setShowConfigImport,
-    audioRef,
   });
 
   return (

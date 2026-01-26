@@ -1,0 +1,115 @@
+{
+  "globalConfig": {
+    "animationDuration": 2500,
+    "pauseDuration": 2000,
+    "animationType": "typewriter",
+    "videoDimensions": "1080x1920",
+    "videoQuality": "high",
+    "backgroundColor": "#000000"
+  },
+  "texts": [
+    {
+      "content": "JavaScript Concepts:\nScope vs. Closures \n(Explained in 30 seconds)",
+      "animationType": "typewriter",
+      "fontSize": 80,
+      "fontColor": "#FFFFFF",
+      "fontWeight": "normal",
+      "textAlign": "left",
+      "position": "center",
+      "animationDuration": 2500,
+      "pauseDuration": 2000
+    },
+    {
+      "content": "Think of a Function\nas a temporary Box \n\nWhatever is created inside...\nUsually dies inside.",
+      "animationType": "typewriter",
+      "fontSize": 80,
+      "fontColor": "#FFFFFF",
+      "fontWeight": "normal",
+      "textAlign": "left",
+      "position": "center",
+      "animationDuration": 3500,
+      "pauseDuration": 2500
+    },
+    {
+      "content": "function outer() {\n   let data = \"secret\";\n}\n\nconsole.log(data);\n// Error! \n// \"data\" is trapped inside.",
+      "animationType": "typewriter",
+      "fontSize": 80,
+      "fontColor": "#FFFFFF",
+      "fontWeight": "normal",
+      "textAlign": "left",
+      "position": "center",
+      "animationDuration": 4500,
+      "pauseDuration": 4000
+    },
+    {
+      "content": "This is Scope.\n\nBut Closures break\nthis rule. \n\nHere is how...",
+      "animationType": "typewriter",
+      "fontSize": 80,
+      "fontColor": "#FFFFFF",
+      "fontWeight": "normal",
+      "textAlign": "left",
+      "position": "center",
+      "animationDuration": 2500,
+      "pauseDuration": 2000
+    },
+    {
+      "content": "function outer() {\n   let data = \"alive!\";\n\n   return function inner() {\n       return data;\n   };\n}",
+      "animationType": "typewriter",
+      "fontSize": 80,
+      "fontColor": "#FFFFFF",
+      "fontWeight": "normal",
+      "textAlign": "left",
+      "position": "center",
+      "animationDuration": 5000,
+      "pauseDuration": 4000
+    },
+    {
+      "content": "const myFunc = outer();\n\n// \"outer\" is finished.\n// But...\n\nconsole.log(myFunc());\n// Output: \"alive!\" ",
+      "animationType": "typewriter",
+      "fontSize": 80,
+      "fontColor": "#FFFFFF",
+      "fontWeight": "normal",
+      "textAlign": "left",
+      "position": "center",
+      "animationDuration": 4500,
+      "pauseDuration": 4000
+    },
+    {
+      "content": "How did it remember?\n\nThe inner function\nformed a Closure.\n\nIt \"closed over\" the variable\nand kept it in a backpack. ",
+      "animationType": "typewriter",
+      "fontSize": 80,
+      "fontColor": "#FFFFFF",
+      "fontWeight": "normal",
+      "textAlign": "left",
+      "position": "center",
+      "animationDuration": 4500,
+      "pauseDuration": 3000
+    },
+    {
+      "content": "Scope = Where variables live.\n\nClosure = Memory of variables\neven after the function returns.",
+      "animationType": "typewriter",
+      "fontSize": 80,
+      "fontColor": "#FFFFFF",
+      "fontWeight": "normal",
+      "textAlign": "left",
+      "position": "center",
+      "animationDuration": 4000,
+      "pauseDuration": 3000
+    },
+    {
+      "content": "Save this for your interview! \n\nLike & Follow for more JS.",
+      "animationType": "typewriter",
+      "fontSize": 80,
+      "fontColor": "#FFFFFF",
+      "fontWeight": "normal",
+      "textAlign": "left",
+      "position": "center",
+      "animationDuration": 2500,
+      "pauseDuration": 2000
+    }
+  ],
+    "url": "http://localhost:5173/ff-16b-2c-44100hz.mp3",
+    "startTime": 0,
+    "endTime": 60,
+    "volume": 0.9
+}

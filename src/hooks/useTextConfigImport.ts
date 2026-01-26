@@ -6,7 +6,6 @@ interface UseTextConfigImportProps {
   setConfig: React.Dispatch<React.SetStateAction<TextAnimationConfig>>;
   setSelectedText: React.Dispatch<React.SetStateAction<TextItem | null>>;
   setShowConfigImport: React.Dispatch<React.SetStateAction<boolean>>;
-  audioRef: React.RefObject<HTMLAudioElement | null>;
 }
 
 export const useTextConfigImport = ({
@@ -14,7 +13,6 @@ export const useTextConfigImport = ({
   setConfig,
   setSelectedText,
   setShowConfigImport,
-  audioRef,
 }: UseTextConfigImportProps) => {
   const handleConfigImport = useCallback((
     importedTexts: TextItem[],
@@ -56,12 +54,7 @@ export const useTextConfigImport = ({
       return newConfig;
     });
 
-    // Set up audio element if music was provided
-    if (importedMusic && audioRef.current) {
-      audioRef.current.src = importedMusic.dataUrl;
-      audioRef.current.volume = importedMusic.volume;
-      audioRef.current.load();
-    }
+    // Audio will be set up automatically by useMusicManagement when config changes
 
     // Select first imported text
     if (importedTexts.length > 0) {
@@ -69,7 +62,7 @@ export const useTextConfigImport = ({
     }
 
     setShowConfigImport(false);
-  }, [setTexts, setConfig, setSelectedText, setShowConfigImport, audioRef]);
+  }, [setTexts, setConfig, setSelectedText, setShowConfigImport]);
 
   return { handleConfigImport };
 };

@@ -23,6 +23,7 @@ export function ImageGenerator() {
   });
 
   const { audioRef, handleMusicChange } = useMusicManagement({
+    config: reelState.config,
     setConfig: reelState.setConfig,
     setShowMusicUpload: reelState.setShowMusicUpload,
   });
