@@ -28,10 +28,9 @@ export const TextPreviewModal: React.FC<TextPreviewModalProps> = ({
     <Dialog
       open
       onClose={onClose}
-      maxWidth="lg"
       fullWidth
       maxWidth={false}
-      sx={{ '& .MuiDialog-paper': { height: '90vh', maxHeight: '90vh' } }}
+      sx={{ '& .MuiDialog-paper': { height: '90vh', maxHeight: '90vh', width: '95vw' } }}
     >
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2 }}>
         <div>Preview & Generate Text Animation</div>

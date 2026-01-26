@@ -1,12 +1,11 @@
 import React from 'react';
-import { Box, CircularProgress, Typography, Alert } from '@mui/material';
+import { Box } from '@mui/material';
 import {
   TextActionBar,
   TextEditorLayout,
   MusicSection,
   TextEmptyState,
-  TextPreviewModal,
-  ConfigImport // TODO: adapt for text
+  TextPreviewModal
 } from '../';
 import type { TextItem, TextAnimationConfig } from '../../types';
 import { layoutStyles } from './styles';
@@ -90,6 +89,7 @@ export const TextAnimationLayout: React.FC<TextAnimationLayoutProps> = ({
             onReorder={onReorderTexts}
             onRemove={onRemoveText}
             onSaveText={onSaveText}
+            onAddText={onAddText}
           />
         </Box>
       )}

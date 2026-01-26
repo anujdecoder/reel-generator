@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocalStorage } from './useLocalStorage';
-import type { ImageItem, ReelConfig, TextItem, TextAnimationConfig, AnimationType } from '../types';
+import type { ImageItem, ReelConfig } from '../types';
 
 const DEFAULT_CONFIG: ReelConfig = {
   transitionDuration: 500,

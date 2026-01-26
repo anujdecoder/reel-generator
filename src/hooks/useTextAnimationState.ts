@@ -3,8 +3,9 @@ import { useLocalStorage } from './useLocalStorage';
 import type { TextItem, TextAnimationConfig } from '../types';
 
 const DEFAULT_TEXT_CONFIG: TextAnimationConfig = {
-  textDuration: 3000,
-  animationType: 'fadeIn',
+  animationDuration: 1000,
+  pauseDuration: 2000,
+  animationType: 'typewriter',
   outputFormat: 'mp4',
   videoQuality: 'high',
   useDirectEncoding: true,

@@ -38,7 +38,8 @@ export interface TextItem {
   id: string;
   content: string;
   animationType: AnimationType;
-  duration: number; // How long this text shows in ms
+  animationDuration: number; // How long the animation takes in ms
+  pauseDuration: number; // How long text stays visible after animation in ms
   fontSize: number;
   fontColor: string;
   backgroundColor?: string; // Optional background
@@ -69,7 +70,8 @@ export interface ReelConfig {
 }
 
 export interface TextAnimationConfig {
-  textDuration: number; // How long each text shows in ms
+  animationDuration: number; // How long animation takes in ms
+  pauseDuration: number; // How long text stays visible in ms
   animationType: AnimationType; // Default animation
   music?: MusicTrack;
   outputFormat: VideoFormat;
@@ -135,7 +137,8 @@ export interface TextAnimationConfigJSON {
 
 export interface ConfigTextItem {
   content: string;
-  duration?: number; // ms, uses global if not set
+  animationDuration?: number; // ms, uses global if not set
+  pauseDuration?: number; // ms, uses global if not set
   animationType?: AnimationType;
   fontSize?: number;
   fontColor?: string;

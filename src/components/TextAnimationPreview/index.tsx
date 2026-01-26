@@ -14,7 +14,6 @@ import {
   Switch,
   FormControlLabel,
   Tooltip,
-  Slider,
 } from '@mui/material';
 import {
   PlayArrow as PlayIcon,
@@ -27,10 +26,8 @@ import type { TextItem, TextAnimationConfig, VideoFormat, VideoQuality, VideoDim
 import { VIDEO_DIMENSION_PRESETS } from '../../types';
 import {
   convertWebmToMp4,
-  isFFmpegSupported,
-  getFFmpegSupportStatus,
   generateVideoWithFFmpeg,
-  isDirectFFmpegEncodingSupported,
+  checkFFmpegEnvironment,
   QUALITY_PRESETS
 } from '../../utils/videoConverter';
 
@@ -56,19 +53,18 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
   const [generationMessage, setGenerationMessage] = useState('');
   const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
-  const [previewProgress, setPreviewProgress] = useState(0);
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
   const [ffmpegSupported, setFfmpegSupported] = useState<boolean | null>(null);
   const [ffmpegStatus, setFfmpegStatus] = useState<string>('');
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Calculate video duration and total frames
   const videoSpecs = useMemo(() => {
     const fps = 30;
-    const totalDuration = texts.reduce((sum, text) => sum + text.duration, 0) / 1000; // in seconds
+    const totalDuration = texts.reduce((sum, text) => sum + text.animationDuration + text.pauseDuration, 0) / 1000; // in seconds
     const totalFrames = Math.ceil(totalDuration * fps);
     return { fps, totalDuration, totalFrames };
   }, [texts]);
@@ -79,40 +75,46 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
     return { width: preset.width, height: preset.height };
   }, [config.videoDimensions]);
 
-  // Render text to canvas
+  // Render text to canvas with word wrapping
   const renderTextToCanvas = useCallback((ctx: CanvasRenderingContext2D, text: TextItem, progress: number, dimensions: { width: number; height: number }) => {
     // Clear canvas with background color
     ctx.fillStyle = config.backgroundColor || '#000000';
     ctx.fillRect(0, 0, dimensions.width, dimensions.height);
 
-    // Apply animation
-    const animationStyle = getAnimationStyle(text, progress);
-
     // Set text properties
     ctx.fillStyle = text.fontColor;
     ctx.font = `${text.fontWeight} ${text.fontSize}px Arial`; // Using Arial as fallback
-    ctx.textAlign = text.textAlign as CanvasTextAlign;
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
     // Position text
-    let x = dimensions.width / 2;
-    let y = dimensions.height / 2;
+    let centerX = dimensions.width / 2;
+    let centerY = dimensions.height / 2;
 
     switch (text.position) {
       case 'top':
-        y = dimensions.height * 0.25;
+        centerY = dimensions.height * 0.25;
         break;
       case 'center':
-        y = dimensions.height / 2;
+        centerY = dimensions.height / 2;
         break;
       case 'bottom':
-        y = dimensions.height * 0.75;
+        centerY = dimensions.height * 0.75;
         break;
     }
 
-    // Apply animation transformations
+    // Get the text to display (with typewriter effect if applicable)
+    const fullText = text.content;
+    const displayText = text.animationType === 'typewriter'
+      ? fullText.substring(0, Math.floor(progress * fullText.length))
+      : fullText;
+
+    // Apply animation
+    const animationStyle = getAnimationStyle(text, progress);
+
     ctx.save();
-    ctx.translate(x, y);
+    ctx.translate(centerX, centerY);
+
     if (animationStyle.transform) {
       // Parse transform (simple implementation)
       if (animationStyle.transform.includes('translateX')) {
@@ -132,12 +134,35 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
     }
     ctx.globalAlpha = animationStyle.opacity || 1;
 
-    // Render text
-    const displayText = text.animationType === 'typewriter'
-      ? text.content.substring(0, Math.floor(progress * text.content.length))
-      : text.content;
+    // Word wrap the text
+    const words = displayText.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
 
-    ctx.fillText(displayText, 0, 0);
+    for (const word of words) {
+      const testLine = currentLine + (currentLine ? ' ' : '') + word;
+      const metrics = ctx.measureText(testLine);
+      const testWidth = metrics.width;
+
+      if (testWidth > dimensions.width * 0.8 && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    lines.push(currentLine);
+
+    // Draw each line
+    const lineHeight = text.fontSize * 1.2;
+    const totalHeight = lines.length * lineHeight;
+    const startY = -totalHeight / 2 + lineHeight / 2;
+
+    lines.forEach((line, index) => {
+      const y = startY + index * lineHeight;
+      ctx.fillText(line, 0, y);
+    });
+
     ctx.restore();
   }, [config.backgroundColor]);
 
@@ -173,10 +198,8 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
 
     setIsPlayingPreview(true);
     setCurrentTextIndex(0);
-    setPreviewProgress(0);
 
     let startTime = Date.now();
-    let currentIndex = 0;
 
     const animate = () => {
       const canvas = canvasRef.current;
@@ -191,24 +214,33 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
       // Calculate which text we're on and its progress
       let accumulatedTime = 0;
       for (let i = 0; i < texts.length; i++) {
-        const textDuration = texts[i].duration / 1000;
-        if (elapsed < accumulatedTime + textDuration) {
-          currentIndex = i;
+        const text = texts[i];
+        const animationTime = text.animationDuration / 1000;
+        const pauseTime = text.pauseDuration / 1000;
+        const totalTextTime = animationTime + pauseTime;
+
+        if (elapsed < accumulatedTime + totalTextTime) {
           const textElapsed = elapsed - accumulatedTime;
-          const progress = textElapsed / textDuration;
-          setCurrentTextIndex(i);
-          setPreviewProgress(progress);
-          renderTextToCanvas(ctx, texts[i], progress, canvasDimensions);
+
+          // During animation phase
+          if (textElapsed < animationTime) {
+            const progress = textElapsed / animationTime;
+            setCurrentTextIndex(i);
+            renderTextToCanvas(ctx, text, progress, canvasDimensions);
+          } else {
+            // During pause phase - show full text
+            setCurrentTextIndex(i);
+            renderTextToCanvas(ctx, text, 1, canvasDimensions);
+          }
           break;
         }
-        accumulatedTime += textDuration;
+        accumulatedTime += totalTextTime;
       }
 
       // Check if animation is complete
       if (elapsed >= videoSpecs.totalDuration) {
         setIsPlayingPreview(false);
         setCurrentTextIndex(0);
-        setPreviewProgress(0);
         return;
       }
 
@@ -221,7 +253,6 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
   const stopPreview = useCallback(() => {
     setIsPlayingPreview(false);
     setCurrentTextIndex(0);
-    setPreviewProgress(0);
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
@@ -259,13 +290,25 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
         // Find which text corresponds to this time
         let accumulatedTime = 0;
         for (let i = 0; i < texts.length; i++) {
-          const textDuration = texts[i].duration / 1000;
-          if (timeInSeconds < accumulatedTime + textDuration) {
-            const textProgress = (timeInSeconds - accumulatedTime) / textDuration;
-            renderTextToCanvas(ctx, texts[i], textProgress, canvasDimensions);
+          const text = texts[i];
+          const animationTime = text.animationDuration / 1000;
+          const pauseTime = text.pauseDuration / 1000;
+          const totalTextTime = animationTime + pauseTime;
+
+          if (timeInSeconds < accumulatedTime + totalTextTime) {
+            const textElapsed = timeInSeconds - accumulatedTime;
+
+            // During animation phase
+            if (textElapsed < animationTime) {
+              const progress = textElapsed / animationTime;
+              renderTextToCanvas(ctx, text, progress, canvasDimensions);
+            } else {
+              // During pause phase - show full text
+              renderTextToCanvas(ctx, text, 1, canvasDimensions);
+            }
             break;
           }
-          accumulatedTime += textDuration;
+          accumulatedTime += totalTextTime;
         }
       };
 
@@ -290,7 +333,7 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
       if (config.outputFormat === 'mp4') {
         setGenerationMessage('Converting to MP4...');
         finalBlob = await convertWebmToMp4(videoBlob, (progress) => {
-          setGenerationProgress(90 + progress * 0.1);
+          setGenerationProgress(90 + progress.progress * 0.1);
         });
       }
 
@@ -372,53 +415,6 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
                 </Button>
               </span>
             </Tooltip>
-
-            {/* Settings */}
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel>Dimensions</InputLabel>
-              <Select
-                value={config.videoDimensions}
-                label="Dimensions"
-                onChange={(e) => onConfigChange({ ...config, videoDimensions: e.target.value as VideoDimensions })}
-              >
-                {Object.entries(VIDEO_DIMENSION_PRESETS).map(([key, preset]) => (
-                  <MenuItem key={key} value={key}>
-                    {preset.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl size="small" sx={{ minWidth: 100 }}>
-              <InputLabel>Quality</InputLabel>
-              <Select
-                value={config.videoQuality}
-                label="Quality"
-                onChange={(e) => onConfigChange({ ...config, videoQuality: e.target.value as VideoQuality })}
-              >
-                {Object.entries(QUALITY_PRESETS).map(([key, preset]) => (
-                  <MenuItem key={key} value={key}>
-                    <Tooltip title={preset.description}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {key === 'maximum' && <HighQualityIcon fontSize="small" />}
-                        {key.charAt(0).toUpperCase() + key.slice(1)}
-                      </Box>
-                    </Tooltip>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={config.useDirectEncoding}
-                  onChange={(e) => onConfigChange({ ...config, useDirectEncoding: e.target.checked })}
-                  size="small"
-                />
-              }
-              label="High Quality"
-            />
           </Stack>
         </Box>
       )}
@@ -449,44 +445,164 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
         </Box>
       )}
 
-      {/* Preview Canvas */}
-      <Box sx={{ flex: 1, p: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#111' }}>
-        <canvas
-          ref={canvasRef}
-          width={canvasDimensions.width}
-          height={canvasDimensions.height}
-          style={{
-            maxWidth: '100%',
-            maxHeight: '100%',
-            display: 'block',
-            backgroundColor: config.backgroundColor || '#000000',
-          }}
-        />
-
-        {/* Overlay info */}
-        {showPreviewPlayer && currentText && isPlayingPreview && (
-          <Box sx={{ position: 'absolute', bottom: 16, left: 16 }}>
-            <Chip
-              label={`Text ${currentTextIndex + 1}/${texts.length}`}
-              color="primary"
-              variant="filled"
-              size="small"
+      {/* Two-column layout */}
+      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        {/* Left: Preview */}
+        <Box sx={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          p: 2,
+          borderRight: 1,
+          borderColor: 'divider'
+        }}>
+          <Typography variant="h6" gutterBottom>Preview</Typography>
+          <Box sx={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: '#111',
+            borderRadius: 1,
+            overflow: 'hidden',
+            position: 'relative'
+          }}>
+            <canvas
+              ref={canvasRef}
+              width={canvasDimensions.width}
+              height={canvasDimensions.height}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '100%',
+                display: 'block',
+                backgroundColor: config.backgroundColor || '#000000',
+                objectFit: 'contain',
+              }}
             />
-          </Box>
-        )}
-      </Box>
 
-      {/* Video playback (when generated) */}
-      {generatedVideoUrl && videoRef.current && (
-        <Box sx={{ flexShrink: 0, p: 2, borderTop: 1, borderColor: 'divider' }}>
-          <video
-            ref={videoRef}
-            src={generatedVideoUrl}
-            controls
-            style={{ width: '100%', maxHeight: 200 }}
-          />
+            {/* Overlay info */}
+            {showPreviewPlayer && currentText && isPlayingPreview && (
+              <Box sx={{ position: 'absolute', bottom: 16, left: 16 }}>
+                <Chip
+                  label={`Text ${currentTextIndex + 1}/${texts.length}`}
+                  color="primary"
+                  variant="filled"
+                  size="small"
+                />
+              </Box>
+            )}
+          </Box>
+
+          {/* Video playback (when generated) */}
+          {generatedVideoUrl && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>Generated Video</Typography>
+              <video
+                ref={videoRef}
+                src={generatedVideoUrl}
+                controls
+                style={{
+                  width: '100%',
+                  maxHeight: 200,
+                  borderRadius: 4
+                }}
+              />
+            </Box>
+          )}
         </Box>
-      )}
+
+        {/* Right: Controls */}
+        <Box sx={{
+          width: 320,
+          p: 2,
+          overflow: 'auto',
+          bgcolor: 'background.paper',
+          flexShrink: 0
+        }}>
+          <Typography variant="h6" gutterBottom>Settings</Typography>
+
+          <Stack spacing={3}>
+            {/* Dimensions */}
+            <FormControl fullWidth size="small">
+              <InputLabel>Dimensions</InputLabel>
+              <Select
+                value={config.videoDimensions}
+                label="Dimensions"
+                onChange={(e) => onConfigChange({ ...config, videoDimensions: e.target.value as VideoDimensions })}
+              >
+                {Object.entries(VIDEO_DIMENSION_PRESETS).map(([key, preset]) => (
+                  <MenuItem key={key} value={key}>
+                    {preset.label} ({preset.aspectRatio})
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Quality */}
+            <FormControl fullWidth size="small">
+              <InputLabel>Quality</InputLabel>
+              <Select
+                value={config.videoQuality}
+                label="Quality"
+                onChange={(e) => onConfigChange({ ...config, videoQuality: e.target.value as VideoQuality })}
+              >
+                {Object.entries(QUALITY_PRESETS).map(([key, preset]) => (
+                  <MenuItem key={key} value={key}>
+                    <Tooltip title={preset.description}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {key === 'maximum' && <HighQualityIcon fontSize="small" />}
+                        {key.charAt(0).toUpperCase() + key.slice(1)}
+                      </Box>
+                    </Tooltip>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Format */}
+            <FormControl fullWidth size="small">
+              <InputLabel>Format</InputLabel>
+              <Select
+                value={config.outputFormat}
+                label="Format"
+                onChange={(e) => onConfigChange({ ...config, outputFormat: e.target.value as VideoFormat })}
+              >
+                <MenuItem value="mp4">MP4</MenuItem>
+                <MenuItem value="webm">WebM</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* High Quality Toggle */}
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={config.useDirectEncoding}
+                  onChange={(e) => onConfigChange({ ...config, useDirectEncoding: e.target.checked })}
+                  size="small"
+                />
+              }
+              label="High Quality Encoding"
+            />
+
+            {/* Background Color */}
+            <Box>
+              <Typography variant="body2" gutterBottom>Background Color</Typography>
+              <input
+                type="color"
+                value={config.backgroundColor || '#000000'}
+                onChange={(e) => onConfigChange({ ...config, backgroundColor: e.target.value })}
+                style={{
+                  width: 50,
+                  height: 40,
+                  border: '1px solid #ccc',
+                  borderRadius: 4,
+                  cursor: 'pointer'
+                }}
+              />
+            </Box>
+          </Stack>
+        </Box>
+      </Box>
     </Box>
   );
 };

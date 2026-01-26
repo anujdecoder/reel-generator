@@ -146,18 +146,33 @@ export const TextEditor: React.FC<TextEditorProps> = ({
         </Stack>
       </Box>
 
-      {/* Duration */}
+      {/* Timing */}
       <Box>
         <Typography variant="body2" sx={{ mb: 1, fontWeight: 'bold' }}>Timing</Typography>
-        <Typography variant="caption">Duration: {text.duration}ms</Typography>
-        <Slider
-          value={text.duration}
-          onChange={(_, value) => handleChange('duration', value)}
-          min={500}
-          max={10000}
-          step={500}
-          valueLabelDisplay="auto"
-        />
+
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="caption">Animation Duration: {text.animationDuration}ms</Typography>
+          <Slider
+            value={text.animationDuration}
+            onChange={(_, value) => handleChange('animationDuration', value)}
+            min={200}
+            max={5000}
+            step={100}
+            valueLabelDisplay="auto"
+          />
+        </Box>
+
+        <Box>
+          <Typography variant="caption">Pause Duration: {text.pauseDuration}ms</Typography>
+          <Slider
+            value={text.pauseDuration}
+            onChange={(_, value) => handleChange('pauseDuration', value)}
+            min={500}
+            max={10000}
+            step={500}
+            valueLabelDisplay="auto"
+          />
+        </Box>
       </Box>
     </Box>
   );

@@ -4,13 +4,14 @@ import type { TextItem, TextAnimationConfig } from '../types';
 export const useTextVideoCalculation = (texts: TextItem[], config: TextAnimationConfig) => {
   const videoDuration = useMemo(() => {
     if (texts.length === 0) return 0;
-    // Sum up per-text durations (using default if not set)
+    // Sum up per-text durations (animation + pause)
     const totalMs = texts.reduce((sum, txt) => {
-      const duration = txt.duration ?? config.textDuration;
-      return sum + duration;
+      const animationDuration = txt.animationDuration ?? config.animationDuration;
+      const pauseDuration = txt.pauseDuration ?? config.pauseDuration;
+      return sum + animationDuration + pauseDuration;
     }, 0);
     return totalMs / 1000; // Convert to seconds
-  }, [texts, config.textDuration]);
+  }, [texts, config.animationDuration, config.pauseDuration]);
 
   return { videoDuration };
 };

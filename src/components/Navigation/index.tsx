@@ -9,14 +9,14 @@ export const Navigation: React.FC = () => {
 
   const currentTab = routes.findIndex(route => route.path === location.pathname);
 
-  const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     navigate(routes[newValue].path);
   };
 
   return (
     <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
       <Tabs value={currentTab} onChange={handleChange}>
-        {routes.map((route, index) => (
+        {routes.map((route) => (
           <Tab key={route.path} label={route.label} />
         ))}
       </Tabs>

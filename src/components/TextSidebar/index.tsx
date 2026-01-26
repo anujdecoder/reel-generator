@@ -3,15 +3,15 @@ import {
   Box,
   Typography,
   IconButton,
-  Stack,
-  alpha,
   List,
   ListItem,
   ListItemButton,
   ListItemText,
+  Button,
 } from '@mui/material';
 import {
   Close as CloseIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 import type { TextItem } from '../../types';
 import { sidebarStyles } from './styles';
@@ -22,20 +22,32 @@ interface TextSidebarProps {
   onSelectText: (text: TextItem) => void;
   onReorder: (texts: TextItem[]) => void;
   onRemove: (id: string) => void;
+  onAddText: (content?: string) => void;
 }
 
 export const TextSidebar: React.FC<TextSidebarProps> = ({
   texts,
   selectedTextId,
   onSelectText,
-  onReorder,
   onRemove,
+  onAddText,
 }) => {
   return (
     <Box sx={sidebarStyles.root}>
-      <Typography variant="h6" sx={sidebarStyles.title}>
-        Texts
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+        <Typography variant="h6" sx={sidebarStyles.title}>
+          Texts
+        </Typography>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<AddIcon />}
+          onClick={() => onAddText()}
+          sx={{ minWidth: 'auto', px: 1 }}
+        >
+          Add
+        </Button>
+      </Box>
 
       <List sx={sidebarStyles.list}>
         {texts.map((text, index) => (

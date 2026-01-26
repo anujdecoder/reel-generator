@@ -12,6 +12,7 @@ interface TextEditorLayoutProps {
   onReorder: (texts: TextItem[]) => void;
   onRemove: (id: string) => void;
   onSaveText: (textId: string, updates: Partial<TextItem>) => void;
+  onAddText: (content?: string) => void;
 }
 
 export const TextEditorLayout: React.FC<TextEditorLayoutProps> = ({
@@ -21,6 +22,7 @@ export const TextEditorLayout: React.FC<TextEditorLayoutProps> = ({
   onReorder,
   onRemove,
   onSaveText,
+  onAddText,
 }) => {
   return (
     <Box sx={editorLayoutStyles.root}>
@@ -32,6 +34,7 @@ export const TextEditorLayout: React.FC<TextEditorLayoutProps> = ({
           onSelectText={onSelectText}
           onReorder={onReorder}
           onRemove={onRemove}
+          onAddText={onAddText}
         />
       </Paper>
 

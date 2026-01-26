@@ -1,15 +1,15 @@
 import { useCallback, useRef } from 'react';
-import type { MusicTrack, ReelConfig } from '../types';
+import type { MusicTrack } from '../types';
 
-interface UseMusicManagementProps {
-  setConfig: React.Dispatch<React.SetStateAction<ReelConfig>>;
+interface UseMusicManagementProps<T extends { music?: MusicTrack }> {
+  setConfig: React.Dispatch<React.SetStateAction<T>>;
   setShowMusicUpload: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export const useMusicManagement = ({
+export const useMusicManagement = <T extends { music?: MusicTrack }>({
   setConfig,
   setShowMusicUpload,
-}: UseMusicManagementProps) => {
+}: UseMusicManagementProps<T>) => {
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const handleMusicChange = useCallback((music: MusicTrack | undefined) => {

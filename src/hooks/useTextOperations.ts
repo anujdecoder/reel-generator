@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import type { TextItem, AnimationType, TextPosition } from '../types';
+import type { TextItem } from '../types';
 
 interface UseTextOperationsProps {
   texts: TextItem[];
@@ -32,8 +32,9 @@ export const useTextOperations = ({
     const newText: TextItem = {
       id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       content,
-      animationType: 'fadeIn',
-      duration: 3000,
+      animationType: 'typewriter',
+      animationDuration: 1000,
+      pauseDuration: 2000,
       fontSize: 48,
       fontColor: '#ffffff',
       fontWeight: 'bold',
