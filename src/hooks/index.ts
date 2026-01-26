@@ -9,3 +9,4 @@ export { useImageOperations } from './useImageOperations';
 export { useTextOperations } from './useTextOperations';
 export { useMusicManagement } from './useMusicManagement';
 export { useConfigImport } from './useConfigImport';
+export { useTextConfigImport } from './useTextConfigImport';

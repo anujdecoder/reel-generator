@@ -125,7 +125,8 @@ export interface ReelConfigJSON {
 
 export interface TextAnimationConfigJSON {
   globalConfig?: {
-    textDuration?: number; // ms
+    animationDuration?: number; // ms - how long animation takes
+    pauseDuration?: number; // ms - how long text stays visible
     animationType?: AnimationType;
     videoDimensions?: VideoDimensions;
     videoQuality?: VideoQuality;

@@ -1,13 +1,16 @@
 import React from 'react';
-import { Box, Paper, Typography, Button, TextField } from '@mui/material';
+import { Box, Paper, Typography, Button, TextField, Stack } from '@mui/material';
+import { Code as CodeIcon } from '@mui/icons-material';
 import { emptyStateStyles } from './styles';
 
 interface TextEmptyStateProps {
   onAddText: (content?: string) => void;
+  onConfigImport: () => void;
 }
 
 export const TextEmptyState: React.FC<TextEmptyStateProps> = ({
   onAddText,
+  onConfigImport,
 }) => {
   const [text, setText] = React.useState('');
 
@@ -40,6 +43,19 @@ export const TextEmptyState: React.FC<TextEmptyStateProps> = ({
           Add Text
         </Button>
 
+        <Stack sx={emptyStateStyles.uploadSection}>
+          <Typography color="text.secondary">
+            or
+          </Typography>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<CodeIcon />}
+            onClick={onConfigImport}
+          >
+            Import from JSON
+          </Button>
+        </Stack>
 
       </Paper>
     </Box>

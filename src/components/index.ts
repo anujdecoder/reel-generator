@@ -1,5 +1,6 @@
 // Individual components
 export { ConfigImport } from './ConfigImport';
+export { TextConfigImport } from './TextConfigImport';
 export { ImageEditor } from './ImageEditor';
 export { ImageSidebar } from './ImageSidebar';
 export { ImageUpload } from './ImageUpload';
