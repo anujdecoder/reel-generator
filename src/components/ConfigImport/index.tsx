@@ -30,7 +30,7 @@ import type {
   ReelConfig,
   TextOverlay,
   ConfigImageItem,
-} from '../types';
+} from '../../types';
 
 interface ConfigImportProps {
   open: boolean;

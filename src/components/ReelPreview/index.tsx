@@ -23,8 +23,8 @@ import {
   Movie as MovieIcon,
   HighQuality as HighQualityIcon,
 } from '@mui/icons-material';
-import type { ImageItem, ReelConfig, TextOverlay, VideoFormat, VideoQuality, VideoDimensions } from '../types';
-import { VIDEO_DIMENSION_PRESETS } from '../types';
+import type { ImageItem, ReelConfig, TextOverlay, VideoFormat, VideoQuality, VideoDimensions } from '../../types';
+import { VIDEO_DIMENSION_PRESETS } from '../../types';
 import { 
   convertWebmToMp4, 
   isFFmpegSupported, 
@@ -32,7 +32,7 @@ import {
   generateVideoWithFFmpeg, 
   isDirectFFmpegEncodingSupported,
   QUALITY_PRESETS 
-} from '../utils/videoConverter';
+} from '../../utils/videoConverter';
 
 interface ReelPreviewProps {
   images: ImageItem[];
@@ -470,7 +470,7 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
           config.music?.startTime || 0,
           config.music?.volume || 1,
           videoQuality,
-          (progress) => {
+          (progress: any) => {
             setConversionStatus(progress.message);
             if (progress.phase === 'converting') setGenerationProgress(progress.progress);
           }
@@ -485,7 +485,7 @@ export const ReelPreview: React.FC<ReelPreviewProps> = ({
           try {
             setConversionStatus('Converting to MP4...');
             setGenerationProgress(0);
-            finalBlob = await convertWebmToMp4(webmBlob, (progress) => {
+            finalBlob = await convertWebmToMp4(webmBlob, (progress: any) => {
               setConversionStatus(progress.message);
               if (progress.phase === 'converting') setGenerationProgress(progress.progress);
             }, videoQuality);

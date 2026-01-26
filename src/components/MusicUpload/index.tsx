@@ -15,8 +15,8 @@ import {
   PlayArrow as PlayIcon,
   Pause as PauseIcon,
 } from '@mui/icons-material';
-import type { MusicTrack } from '../types';
-import { generateId } from '../utils/helpers';
+import type { MusicTrack } from '../../types';
+import { generateId } from '../../utils/helpers';
 
 interface MusicUploadProps {
   music: MusicTrack | undefined;

@@ -1,0 +1,129 @@
+{
+  "globalConfig": {
+    "transitionDuration": 500,
+    "videoDimensions": "1080x1920",
+    "videoQuality": "standard"
+  },
+  "images": [
+    {
+      "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "duration": 1000,
+      "transitionType": "fade",
+      "text": {
+        "content": "Image 1",
+        "position": "bottom",
+        "fontSize": 32,
+        "fontColor": "#ffffff",
+        "backgroundColor": "rgba(0, 0, 0, 0.7)"
+      }
+    },
+    {
+      "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "duration": 1100,
+      "transitionType": "slide",
+      "text": {
+        "content": "Image 2",
+        "position": "bottom",
+        "fontSize": 32,
+        "fontColor": "#ffffff",
+        "backgroundColor": "rgba(0, 0, 0, 0.7)"
+      }
+    },
+    {
+      "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "duration": 1200,
+      "transitionType": "zoom",
+      "text": {
+        "content": "Image 3",
+        "position": "bottom",
+        "fontSize": 32,
+        "fontColor": "#ffffff",
+        "backgroundColor": "rgba(0, 0, 0, 0.7)"
+      }
+    },
+    {
+      "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "duration": 1300,
+      "transitionType": "none",
+      "text": {
+        "content": "Image 4",
+        "position": "bottom",
+        "fontSize": 32,
+        "fontColor": "#ffffff",
+        "backgroundColor": "rgba(0, 0, 0, 0.7)"
+      }
+    },
+    {
+      "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "duration": 1400,
+      "transitionType": "fade",
+      "text": {
+        "content": "Image 5",
+        "position": "bottom",
+        "fontSize": 32,
+        "fontColor": "#ffffff",
+        "backgroundColor": "rgba(0, 0, 0, 0.7)"
+      }
+    },
+    {
+      "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "duration": 1500,
+      "transitionType": "slide",
+      "text": {
+        "content": "Image 6",
+        "position": "bottom",
+        "fontSize": 32,
+        "fontColor": "#ffffff",
+        "backgroundColor": "rgba(0, 0, 0, 0.7)"
+      }
+    },
+    {
+      "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "duration": 1600,
+      "transitionType": "zoom",
+      "text": {
+        "content": "Image 7",
+        "position": "bottom",
+        "fontSize": 32,
+        "fontColor": "#ffffff",
+        "backgroundColor": "rgba(0, 0, 0, 0.7)"
+      }
+    },
+    {
+      "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "duration": 1700,
+      "transitionType": "none",
+      "text": {
+        "content": "Image 8",
+        "position": "bottom",
+        "fontSize": 32,
+        "fontColor": "#ffffff",
+        "backgroundColor": "rgba(0, 0, 0, 0.7)"
+      }
+    },
+    {
+      "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "duration": 1800,
+      "transitionType": "fade",
+      "text": {
+        "content": "Image 9",
+        "position": "bottom",
+        "fontSize": 32,
+        "fontColor": "#ffffff",
+        "backgroundColor": "rgba(0, 0, 0, 0.7)"
+      }
+    },
+    {
+      "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "duration": 1900,
+      "transitionType": "slide",
+      "text": {
+        "content": "Image 10",
+        "position": "bottom",
+        "fontSize": 32,
+        "fontColor": "#ffffff",
+        "backgroundColor": "rgba(0, 0, 0, 0.7)"
+      }
+    }
+  ]
+}

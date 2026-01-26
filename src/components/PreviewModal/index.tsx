@@ -9,8 +9,8 @@ import {
   Paper,
 } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
-import type { ImageItem, ReelConfig } from '../types';
-import { ReelPreview } from './ReelPreview';
+import type { ImageItem, ReelConfig } from '../../types';
+import { ReelPreview } from '../ReelPreview';
 
 interface PreviewModalProps {
   images: ImageItem[];

@@ -27,7 +27,7 @@ import {
   VerticalAlignCenter as CenterIcon,
   VerticalAlignBottom as BottomIcon,
 } from '@mui/icons-material';
-import type { ImageItem, TextOverlay, CropSettings, AspectRatio, TransitionType } from '../types';
+import type { ImageItem, TextOverlay, CropSettings, AspectRatio, TransitionType } from '../../types';
 
 interface ImageEditorProps {
   image: ImageItem | null;
