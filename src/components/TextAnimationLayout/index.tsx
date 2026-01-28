@@ -5,8 +5,7 @@ import {
   TextEditorLayout,
   MusicSection,
   TextEmptyState,
-  TextPreviewModal,
-  TextConfigImport
+  TextPreviewModal
 } from '../';
 import type { TextItem, TextAnimationConfig } from '../../types';
 import { layoutStyles } from './styles';
@@ -21,11 +20,9 @@ interface TextAnimationLayoutProps {
   selectedText: TextItem | null;
   showMusicUpload: boolean;
   showPreview: boolean;
-  showConfigImport: boolean;
 
   // Event handlers
   onAddText: (content?: string) => void;
-  onConfigImport: () => void;
   onMusicToggle: () => void;
   onPreview: () => void;
   onClearAll: () => void;
@@ -36,7 +33,6 @@ interface TextAnimationLayoutProps {
   onMusicChange: (music: any) => void;
   onConfigChange: (config: TextAnimationConfig) => void;
   onPreviewClose: () => void;
-  onConfigImportClose: () => void;
   onConfigImportSubmit: (importedTexts: TextItem[], importedConfig: Partial<TextAnimationConfig>, importedMusic?: any) => void;
   audioRef?: React.RefObject<HTMLAudioElement | null>;
 }
@@ -48,9 +44,7 @@ export const TextAnimationLayout: React.FC<TextAnimationLayoutProps> = ({
   selectedText,
   showMusicUpload,
   showPreview,
-  showConfigImport,
   onAddText,
-  onConfigImport,
   onMusicToggle,
   onPreview,
   onClearAll,
@@ -61,7 +55,6 @@ export const TextAnimationLayout: React.FC<TextAnimationLayoutProps> = ({
   onMusicChange,
   onConfigChange,
   onPreviewClose,
-  onConfigImportClose,
   onConfigImportSubmit,
   audioRef,
 }) => {
@@ -71,7 +64,7 @@ export const TextAnimationLayout: React.FC<TextAnimationLayoutProps> = ({
         /* No texts - show empty state */
         <TextEmptyState
           onAddText={onAddText}
-          onConfigImport={onConfigImport}
+          onConfigImport={onConfigImportSubmit}
         />
       ) : (
         /* Texts exist - show editor layout */
@@ -80,7 +73,6 @@ export const TextAnimationLayout: React.FC<TextAnimationLayoutProps> = ({
             texts={texts}
             config={config}
             onAddText={onAddText}
-            onConfigImport={onConfigImport}
             onMusicToggle={onMusicToggle}
             onPreview={onPreview}
             onClearAll={onClearAll}
@@ -116,11 +108,7 @@ export const TextAnimationLayout: React.FC<TextAnimationLayoutProps> = ({
         />
       )}
 
-      <TextConfigImport
-        open={showConfigImport}
-        onClose={onConfigImportClose}
-        onImport={onConfigImportSubmit}
-      />
+
     </Box>
   );
 };

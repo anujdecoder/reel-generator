@@ -5,14 +5,12 @@ interface UseTextConfigImportProps {
   setTexts: React.Dispatch<React.SetStateAction<TextItem[]>>;
   setConfig: React.Dispatch<React.SetStateAction<TextAnimationConfig>>;
   setSelectedText: React.Dispatch<React.SetStateAction<TextItem | null>>;
-  setShowConfigImport: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export const useTextConfigImport = ({
   setTexts,
   setConfig,
   setSelectedText,
-  setShowConfigImport,
 }: UseTextConfigImportProps) => {
   const handleConfigImport = useCallback((
     importedTexts: TextItem[],
@@ -60,9 +58,7 @@ export const useTextConfigImport = ({
     if (importedTexts.length > 0) {
       setSelectedText(importedTexts[0]);
     }
-
-    setShowConfigImport(false);
-  }, [setTexts, setConfig, setSelectedText, setShowConfigImport]);
+  }, [setTexts, setConfig, setSelectedText]);
 
   return { handleConfigImport };
 };

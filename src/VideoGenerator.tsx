@@ -12,6 +12,11 @@ export function VideoGenerator() {
   // Data layer hooks
   const [texts, setTexts] = useTextStorage();
   const textState = useTextAnimationState();
+  const { handleConfigImport } = useTextConfigImport({
+    setTexts,
+    setConfig: textState.setConfig,
+    setSelectedText: textState.setSelectedText,
+  });
   const { videoDuration } = useTextVideoCalculation(texts, textState.config);
 
   // Business logic hooks
@@ -28,12 +33,7 @@ export function VideoGenerator() {
     setShowMusicUpload: textState.setShowMusicUpload,
   });
 
-  const { handleConfigImport } = useTextConfigImport({
-    setTexts,
-    setConfig: textState.setConfig,
-    setSelectedText: textState.setSelectedText,
-    setShowConfigImport: textState.setShowConfigImport,
-  });
+
 
   return (
     <>
@@ -45,9 +45,7 @@ export function VideoGenerator() {
         selectedText={textState.selectedText}
         showMusicUpload={textState.showMusicUpload}
         showPreview={textState.showPreview}
-        showConfigImport={textState.showConfigImport}
         onAddText={textOps.handleAddText}
-        onConfigImport={() => textState.setShowConfigImport(true)}
         onMusicToggle={() => textState.setShowMusicUpload(!textState.showMusicUpload)}
         onPreview={() => textState.setShowPreview(true)}
         onClearAll={textOps.handleClearAll}
@@ -58,7 +56,6 @@ export function VideoGenerator() {
         onMusicChange={handleMusicChange}
         onConfigChange={textState.setConfig}
         onPreviewClose={() => textState.setShowPreview(false)}
-        onConfigImportClose={() => textState.setShowConfigImport(false)}
         onConfigImportSubmit={handleConfigImport}
         audioRef={audioRef}
       />

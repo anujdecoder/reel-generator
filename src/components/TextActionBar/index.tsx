@@ -1,6 +1,6 @@
 import React from 'react';
 import { Paper, Stack, Button, Chip, Box } from '@mui/material';
-import { MusicNote as MusicNoteIcon, Movie as MovieIcon, DeleteSweep as DeleteSweepIcon, TextFields as TextFieldsIcon, Code as CodeIcon } from '@mui/icons-material';
+import { MusicNote as MusicNoteIcon, Movie as MovieIcon, DeleteSweep as DeleteSweepIcon, TextFields as TextFieldsIcon } from '@mui/icons-material';
 import type { TextItem, TextAnimationConfig } from '../../types';
 import { actionBarStyles } from './styles';
 
@@ -8,7 +8,6 @@ interface TextActionBarProps {
   texts: TextItem[];
   config: TextAnimationConfig;
   onAddText: (content?: string) => void;
-  onConfigImport: () => void;
   onMusicToggle: () => void;
   onPreview: () => void;
   onClearAll: () => void;
@@ -18,7 +17,6 @@ export const TextActionBar: React.FC<TextActionBarProps> = ({
   texts,
   config,
   onAddText,
-  onConfigImport,
   onMusicToggle,
   onPreview,
   onClearAll,
@@ -34,14 +32,7 @@ export const TextActionBar: React.FC<TextActionBarProps> = ({
         >
           Add Text
         </Button>
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<CodeIcon />}
-          onClick={onConfigImport}
-        >
-          Import JSON
-        </Button>
+
         <Button
           variant="outlined"
           size="small"
