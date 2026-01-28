@@ -63,24 +63,21 @@ export interface TextColumn {
 
 export interface TextItem {
   id: string;
-  // Single column mode (legacy)
-  content?: string;
-  // Multi-column mode
-  columns?: TextColumn[];
+  // Single column with multiple paragraphs
+  paragraphs?: TextParagraph[];
 
   animationType: AnimationType;
   animationDuration: number; // How long the animation takes in ms
   pauseDuration: number; // How long text stays visible after animation in ms
 
-  // Global styling (used when columns is not set)
+  // Legacy support for single paragraph
+  content?: string;
   fontSize?: number;
   fontColor?: string;
   backgroundColor?: string; // Optional background
   fontWeight?: 'normal' | 'bold';
   textAlign?: 'left' | 'center' | 'right';
   position?: TextPosition;
-
-  // Code settings (used when columns is not set)
   isCode?: boolean; // Whether this text is code that should be syntax highlighted
   language?: string; // Programming language for syntax highlighting
   highlightedTokens?: HighlightedToken[]; // Cached highlighted tokens for rendering
@@ -191,11 +188,11 @@ export interface ConfigTextColumn {
 }
 
 export interface ConfigTextItem {
-  // Single column mode (legacy)
-  content?: string;
-  // Multi-column mode
-  columns?: ConfigTextColumn[];
+  // Single column with multiple paragraphs
+  paragraphs?: ConfigTextParagraph[];
 
+  // Legacy support for single paragraph
+  content?: string;
   animationDuration?: number; // ms, uses global if not set
   pauseDuration?: number; // ms, uses global if not set
   animationType?: AnimationType;

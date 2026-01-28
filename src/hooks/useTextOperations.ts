@@ -75,11 +75,19 @@ export const useTextOperations = ({
         if (txt.id === textId) {
           const updated = { ...txt, ...updates };
 
-          // Cache highlighted tokens if this is code
-          if (updated.isCode && updated.language && updated.content && (updates.content || updates.language || updates.isCode !== txt.isCode)) {
+          // Cache highlighted tokens for paragraphs
+          if (updated.paragraphs) {
+            updated.paragraphs.forEach(paragraph => {
+              if (paragraph.isCode && paragraph.language && paragraph.content) {
+                paragraph.highlightedTokens = highlightCode(paragraph.content, paragraph.language);
+              } else if (!paragraph.isCode) {
+                paragraph.highlightedTokens = undefined;
+              }
+            });
+          } else if (updated.isCode && updated.language && updated.content && (updates.content || updates.language || updates.isCode !== txt.isCode)) {
+            // Legacy single paragraph support
             updated.highlightedTokens = highlightCode(updated.content, updated.language);
           } else if (!updated.isCode) {
-            // Clear tokens if no longer code
             updated.highlightedTokens = undefined;
           }
 
@@ -93,11 +101,19 @@ export const useTextOperations = ({
       if (prev?.id === textId) {
         const updated = { ...prev, ...updates };
 
-        // Cache highlighted tokens if this is code
-        if (updated.isCode && updated.language && updated.content && (updates.content || updates.language || updates.isCode !== prev.isCode)) {
+        // Cache highlighted tokens for paragraphs
+        if (updated.paragraphs) {
+          updated.paragraphs.forEach(paragraph => {
+            if (paragraph.isCode && paragraph.language && paragraph.content) {
+              paragraph.highlightedTokens = highlightCode(paragraph.content, paragraph.language);
+            } else if (!paragraph.isCode) {
+              paragraph.highlightedTokens = undefined;
+            }
+          });
+        } else if (updated.isCode && updated.language && updated.content && (updates.content || updates.language || updates.isCode !== prev.isCode)) {
+          // Legacy single paragraph support
           updated.highlightedTokens = highlightCode(updated.content, updated.language);
         } else if (!updated.isCode) {
-          // Clear tokens if no longer code
           updated.highlightedTokens = undefined;
         }
 

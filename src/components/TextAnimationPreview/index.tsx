@@ -22,7 +22,7 @@ import {
   Movie as MovieIcon,
   HighQuality as HighQualityIcon,
 } from '@mui/icons-material';
-import type { TextItem, TextAnimationConfig, VideoFormat, VideoQuality, VideoDimensions } from '../../types';
+import type { TextItem, TextAnimationConfig, VideoFormat, VideoQuality, VideoDimensions, TextParagraph } from '../../types';
 import { VIDEO_DIMENSION_PRESETS } from '../../types';
 import {
   convertWebmToMp4,
@@ -71,18 +71,11 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
     return { fps, totalDuration, totalFrames };
   }, [texts]);
 
-  // Get canvas dimensions - use landscape for multi-column content
+  // Get canvas dimensions
   const canvasDimensions = useMemo(() => {
-    // Check if any text item uses columns
-    const hasMultiColumnContent = texts.some(text => text.columns && text.columns.length > 1);
-
-    const dimensionKey: VideoDimensions = hasMultiColumnContent
-      ? '1920x1080' // 16:9 landscape
-      : config.videoDimensions;
-
-    const preset = VIDEO_DIMENSION_PRESETS[dimensionKey];
+    const preset = VIDEO_DIMENSION_PRESETS[config.videoDimensions];
     return { width: preset.width, height: preset.height };
-  }, [config.videoDimensions, texts]);
+  }, [config.videoDimensions]);
 
   // Render text to canvas with word wrapping and syntax highlighting
   const renderTextToCanvas = useCallback((ctx: CanvasRenderingContext2D, text: TextItem, progress: number, dimensions: { width: number; height: number }) => {
@@ -131,9 +124,9 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
     }
     ctx.globalAlpha = animationStyle.opacity || 1;
 
-    // Handle multi-column text or single column text
-    if (text.columns && text.columns.length > 0) {
-      renderMultiColumnText(ctx, text, progress, dimensions);
+    // Handle multi-paragraph text or single paragraph text
+    if (text.paragraphs && text.paragraphs.length > 0) {
+      renderMultiParagraphText(ctx, text, progress, dimensions);
     } else if (text.isCode && text.language) {
       renderHighlightedCode(ctx, text, progress, dimensions);
     } else {
@@ -196,97 +189,270 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
     });
   };
 
-  // Render multi-column text
-  const renderMultiColumnText = (ctx: CanvasRenderingContext2D, text: TextItem, progress: number, dimensions: { width: number; height: number }) => {
-    if (!text.columns || text.columns.length === 0) return;
+  // Render multi-paragraph text (single column)
+  const renderMultiParagraphText = (ctx: CanvasRenderingContext2D, text: TextItem, progress: number, dimensions: { width: number; height: number }) => {
+    if (!text.paragraphs || text.paragraphs.length === 0) return;
 
     const totalWidth = dimensions.width * 0.9; // Use 90% of available width
     const totalHeight = dimensions.height * 0.9; // Use 90% of available height
     const startX = -totalWidth / 2;
     const startY = -totalHeight / 2;
 
-    text.columns!.forEach((column, columnIndex) => {
-      const columnWidth = totalWidth * (column.width / 100);
-      const columnX = startX + (totalWidth * columnIndex / text.columns!.length);
+    // Calculate total height needed for all paragraphs
+    let totalContentHeight = 0;
+    const paragraphHeights: number[] = [];
+    const firstParagraphFontSize = text.paragraphs[0]?.fontSize || 48;
 
-      // Calculate total height needed for all paragraphs in this column
-      let totalColumnContentHeight = 0;
-      const paragraphHeights: number[] = [];
-      const firstParagraphFontSize = column.paragraphs[0]?.fontSize || 48;
+    text.paragraphs.forEach((paragraph) => {
+      // Estimate height for this paragraph
+      const fontSize = paragraph.fontSize || 48;
+      const lineHeight = fontSize * 1.2;
 
-      column.paragraphs.forEach((paragraph) => {
-        // Estimate height for this paragraph
-        const fontSize = paragraph.fontSize || 48;
-        const lineHeight = fontSize * 1.2;
+      if (paragraph.isCode && paragraph.language) {
+        // For code, we need to simulate the rendering to get accurate height
+        const tokens = paragraph.highlightedTokens || highlightCode(paragraph.content, paragraph.language);
 
-        if (paragraph.isCode && paragraph.language) {
-          // For code, count lines and estimate height
-          const lines = paragraph.content.split('\n').length;
-          const estimatedHeight = lines * lineHeight;
-          paragraphHeights.push(estimatedHeight);
-          totalColumnContentHeight += estimatedHeight;
-        } else {
-          // For text, estimate based on content length
-          const lines = paragraph.content.split('\n');
-          const estimatedHeight = lines.length * lineHeight;
-          paragraphHeights.push(estimatedHeight);
-          totalColumnContentHeight += estimatedHeight;
+        // Split tokens into lines (similar to renderHighlightedCodeForParagraph)
+        const lines: HighlightedToken[][] = [];
+        let currentLine: HighlightedToken[] = [];
+        for (const token of tokens) {
+          if (token.isNewline) {
+            lines.push(currentLine);
+            currentLine = [];
+          } else {
+            currentLine.push(token);
+          }
+        }
+        if (currentLine.length > 0) {
+          lines.push(currentLine);
         }
 
-        // Add some spacing between paragraphs
-        totalColumnContentHeight += lineHeight * 0.5;
-      });
+        const estimatedHeight = lines.length * lineHeight;
+        paragraphHeights.push(estimatedHeight);
+        totalContentHeight += estimatedHeight;
+      } else {
+        // For text, count actual lines after word wrapping would occur
+        const words = paragraph.content.split(' ');
+        let lines = 1;
+        let currentLineWidth = 0;
+        const avgCharWidth = fontSize * 0.6; // Rough estimate
+        const maxLineWidth = totalWidth * 0.8; // 80% of width
 
-      // Remove the last spacing
-      totalColumnContentHeight -= (paragraphHeights.length > 0 ? firstParagraphFontSize * 1.2 * 0.5 : 0);
-
-      // Scale down if content is too tall
-      const scaleFactor = Math.min(1, totalHeight / totalColumnContentHeight);
-      const effectiveLineHeight = scaleFactor < 1 ? firstParagraphFontSize * 1.2 * scaleFactor : firstParagraphFontSize * 1.2;
-
-      // Render each paragraph in the column
-      let currentY = startY;
-
-      column.paragraphs.forEach((paragraph, paraIndex) => {
-        // Temporarily modify text object for rendering
-        const tempText: TextItem = {
-          ...text,
-          content: paragraph.content,
-          fontSize: scaleFactor < 1 ? (paragraph.fontSize || 48) * scaleFactor : paragraph.fontSize,
-          fontColor: paragraph.fontColor,
-          fontWeight: paragraph.fontWeight,
-          textAlign: paragraph.textAlign,
-          position: 'top', // Override to top since we're manually positioning
-          isCode: paragraph.isCode,
-          language: paragraph.language,
-          highlightedTokens: paragraph.highlightedTokens,
-        };
-
-        // Save context
-        ctx.save();
-
-        // Position for this paragraph within the column
-        const paraCenterX = columnX + columnWidth / 2;
-        const paraTopY = currentY;
-
-        ctx.translate(paraCenterX, paraTopY);
-
-        // Apply animation (simplified - could be enhanced per paragraph)
-        const animationStyle = getAnimationStyle(text, progress);
-        ctx.globalAlpha = animationStyle.opacity || 1;
-
-        // Render the paragraph
-        if (paragraph.isCode && paragraph.language) {
-          renderHighlightedCode(ctx, tempText, progress, { width: columnWidth * 0.9, height: paragraphHeights[paraIndex] });
-        } else {
-          renderPlainText(ctx, tempText, progress, { width: columnWidth * 0.9, height: paragraphHeights[paraIndex] });
+        for (const word of words) {
+          const wordWidth = word.length * avgCharWidth;
+          if (currentLineWidth + wordWidth > maxLineWidth && currentLineWidth > 0) {
+            lines++;
+            currentLineWidth = wordWidth;
+          } else {
+            currentLineWidth += wordWidth + avgCharWidth; // + space
+          }
         }
 
-        ctx.restore();
+        // Also account for explicit line breaks
+        const explicitLines = paragraph.content.split('\n').length;
+        lines = Math.max(lines, explicitLines);
 
-        // Move down for next paragraph
-        currentY += paragraphHeights[paraIndex] + effectiveLineHeight * 0.5;
-      });
+        const estimatedHeight = lines * lineHeight;
+        paragraphHeights.push(estimatedHeight);
+        totalContentHeight += estimatedHeight;
+      }
+
+      // Add some spacing between paragraphs
+      totalContentHeight += lineHeight * 0.5;
+    });
+
+    // Remove the last spacing
+    totalContentHeight -= (paragraphHeights.length > 0 ? firstParagraphFontSize * 1.2 * 0.5 : 0);
+
+    // Scale down if content is too tall
+    const scaleFactor = Math.min(1, totalHeight / totalContentHeight);
+    const effectiveLineHeight = scaleFactor < 1 ? firstParagraphFontSize * 1.2 * scaleFactor : firstParagraphFontSize * 1.2;
+
+    // Render each paragraph
+    let currentY = startY;
+
+    text.paragraphs.forEach((paragraph, paraIndex) => {
+      // Calculate absolute position for this paragraph
+      const paraX = startX;
+      const paraY = currentY;
+      const paraWidth = totalWidth;
+
+      // Render the paragraph at the calculated position
+      renderParagraphAtPosition(ctx, paragraph, text, progress, paraX, paraY, paraWidth, scaleFactor);
+
+      // Move down for next paragraph
+      const renderedHeight = paragraphHeights[paraIndex] * (scaleFactor < 1 ? scaleFactor : 1);
+      currentY += renderedHeight + effectiveLineHeight * 0.5;
+    });
+  };
+
+  // Render a paragraph at a specific position
+  const renderParagraphAtPosition = (
+    ctx: CanvasRenderingContext2D,
+    paragraph: TextParagraph,
+    text: TextItem,
+    progress: number,
+    x: number,
+    y: number,
+    width: number,
+    scaleFactor: number
+  ) => {
+    // Temporarily modify text object for rendering
+    const tempText: TextItem = {
+      ...text,
+      content: paragraph.content,
+      fontSize: scaleFactor < 1 ? (paragraph.fontSize || 48) * scaleFactor : paragraph.fontSize,
+      fontColor: paragraph.fontColor,
+      fontWeight: paragraph.fontWeight,
+      textAlign: paragraph.textAlign,
+      position: 'top',
+      isCode: paragraph.isCode,
+      language: paragraph.language,
+      highlightedTokens: paragraph.highlightedTokens,
+    };
+
+    // Save context
+    ctx.save();
+
+    // Apply animation
+    const animationStyle = getAnimationStyle(text, progress);
+    ctx.globalAlpha = animationStyle.opacity || 1;
+
+    // Translate to the paragraph position
+    ctx.translate(x, y);
+
+    // Render the paragraph
+    if (paragraph.isCode && paragraph.language) {
+      renderHighlightedCodeForParagraph(ctx, tempText, progress, { width, height: 1000 }, paragraph);
+    } else {
+      renderPlainTextForParagraph(ctx, tempText, progress, { width, height: 1000 }, paragraph);
+    }
+
+    ctx.restore();
+  };
+
+  // Render plain text for paragraph (without positioning)
+  const renderPlainTextForParagraph = (ctx: CanvasRenderingContext2D, text: TextItem, progress: number, dimensions: { width: number; height: number }, paragraph: TextParagraph) => {
+    if (!text.content) return;
+
+    // Set text properties
+    ctx.fillStyle = text.fontColor || '#ffffff';
+    ctx.font = `${text.fontWeight || 'bold'} ${text.fontSize || 48}px Arial`;
+    ctx.textAlign = 'left'; // Always left-align for paragraphs
+    ctx.textBaseline = 'top'; // Start from top
+
+    // Get the text to display (with typewriter effect if applicable)
+    const fullText = text.content;
+    const displayText = text.animationType === 'typewriter'
+      ? fullText.substring(0, Math.floor(progress * fullText.length))
+      : fullText;
+
+    // Handle text alignment within the paragraph bounds
+    let startX = 0;
+    if (paragraph.textAlign === 'center') {
+      startX = dimensions.width / 2;
+      ctx.textAlign = 'center';
+    } else if (paragraph.textAlign === 'right') {
+      startX = dimensions.width;
+      ctx.textAlign = 'right';
+    }
+
+    // Split into lines and render
+    const lines = displayText.split('\n');
+    const lineHeight = (text.fontSize || 48) * 1.2;
+
+    lines.forEach((line, index) => {
+      const y = index * lineHeight;
+      ctx.fillText(line, startX, y);
+    });
+  };
+
+  // Render syntax highlighted code for paragraph (without positioning)
+  const renderHighlightedCodeForParagraph = (ctx: CanvasRenderingContext2D, text: TextItem, progress: number, dimensions: { width: number; height: number }, paragraph: TextParagraph) => {
+    if (!text.language || !text.content) return;
+
+    let tokens: HighlightedToken[];
+    if (text.highlightedTokens) {
+      tokens = text.highlightedTokens;
+    } else {
+      tokens = highlightCode(text.content, text.language);
+    }
+
+    // Split tokens into lines based on newline markers
+    const lines: HighlightedToken[][] = [];
+    let currentLine: HighlightedToken[] = [];
+
+    for (const token of tokens) {
+      if (token.isNewline) {
+        lines.push(currentLine);
+        currentLine = [];
+      } else {
+        currentLine.push(token);
+      }
+    }
+    if (currentLine.length > 0) {
+      lines.push(currentLine);
+    }
+
+    // Calculate total characters for typewriter effect (excluding newlines)
+    const totalChars = tokens.filter(t => !t.isNewline).reduce((sum, token) => sum + token.text.length, 0);
+    const displayChars = text.animationType === 'typewriter'
+      ? Math.floor(progress * totalChars)
+      : totalChars;
+
+    const baseFontSize = text.fontSize || 48;
+    ctx.font = `${text.fontWeight || 'bold'} ${baseFontSize}px monospace`;
+
+    // Handle text alignment within the paragraph bounds
+    let startX = 0;
+    if (paragraph.textAlign === 'center') {
+      startX = dimensions.width / 2;
+    } else if (paragraph.textAlign === 'right') {
+      startX = dimensions.width;
+    }
+
+    // Draw lines
+    const effectiveLineHeight = baseFontSize * 1.2;
+    let charCount = 0;
+
+    lines.forEach((line, lineIndex) => {
+      const y = lineIndex * effectiveLineHeight;
+      let x = startX;
+
+      // Adjust x position based on alignment
+      if (paragraph.textAlign === 'center') {
+        // Calculate line width for centering
+        const lineWidth = line.reduce((width, token) => width + ctx.measureText(token.text).width, 0);
+        x = (dimensions.width - lineWidth) / 2;
+      } else if (paragraph.textAlign === 'right') {
+        // Calculate line width for right alignment
+        const lineWidth = line.reduce((width, token) => width + ctx.measureText(token.text).width, 0);
+        x = dimensions.width - lineWidth;
+      }
+
+      for (const token of line) {
+        // Check if this token should be displayed in typewriter mode
+        if (text.animationType === 'typewriter') {
+          const tokenChars = token.text.length;
+          if (charCount + tokenChars > displayChars) {
+            // Partial token display
+            const remainingChars = displayChars - charCount;
+            if (remainingChars > 0) {
+              const partialText = token.text.substring(0, remainingChars);
+              ctx.fillStyle = token.color;
+              ctx.font = `${token.isBold ? 'bold' : text.fontWeight} ${baseFontSize}px monospace`;
+              ctx.fillText(partialText, x, y);
+            }
+            return; // Stop rendering this line
+          }
+        }
+
+        ctx.fillStyle = token.color;
+        ctx.font = `${token.isBold ? 'bold' : text.fontWeight} ${baseFontSize}px monospace`;
+        ctx.fillText(token.text, x, y);
+        x += ctx.measureText(token.text).width;
+        charCount += token.text.length;
+      }
     });
   };
 

@@ -75,8 +75,8 @@ export const TextSidebar: React.FC<TextSidebarProps> = ({
               <ListItemText
                 primary={`Text ${index + 1}`}
                 secondary={
-                  text.columns && text.columns.length > 0
-                    ? `${text.columns.length} column${text.columns.length > 1 ? 's' : ''}`
+                  text.paragraphs && text.paragraphs.length > 0
+                    ? `${text.paragraphs.length} paragraph${text.paragraphs.length > 1 ? 's' : ''}`
                     : text.content
                       ? text.content.substring(0, 30) + (text.content.length > 30 ? '...' : '')
                       : 'Empty text'

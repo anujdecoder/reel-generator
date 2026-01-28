@@ -135,34 +135,27 @@ function parseConfig(jsonString: string): TextAnimationConfigJSON {
     throw new Error('Texts array cannot be empty');
   }
 
-  // Validate each text has either content or columns
+  // Validate each text has either content or paragraphs
   for (let i = 0; i < parsed.texts.length; i++) {
     const text = parsed.texts[i];
     const hasContent = text.content && typeof text.content === 'string';
-    const hasColumns = text.columns && Array.isArray(text.columns) && text.columns.length > 0;
+    const hasParagraphs = text.paragraphs && Array.isArray(text.paragraphs) && text.paragraphs.length > 0;
 
-    if (!hasContent && !hasColumns) {
-      throw new Error(`Text at index ${i} must have either a "content" string or a "columns" array`);
+    if (!hasContent && !hasParagraphs) {
+      throw new Error(`Text at index ${i} must have either a "content" string or a "paragraphs" array`);
     }
 
     // If both are present, that's also invalid
-    if (hasContent && hasColumns) {
-      throw new Error(`Text at index ${i} cannot have both "content" and "columns" - choose one mode`);
+    if (hasContent && hasParagraphs) {
+      throw new Error(`Text at index ${i} cannot have both "content" and "paragraphs" - choose one mode`);
     }
 
-    // Validate columns structure if present
-    if (hasColumns) {
-      for (let j = 0; j < text.columns!.length; j++) {
-        const column = text.columns![j];
-        if (!column.paragraphs || !Array.isArray(column.paragraphs) || column.paragraphs.length === 0) {
-          throw new Error(`Text at index ${i}, column at index ${j} must have a non-empty "paragraphs" array`);
-        }
-
-        for (let k = 0; k < column.paragraphs.length; k++) {
-          const paragraph = column.paragraphs[k];
-          if (!paragraph.content || typeof paragraph.content !== 'string') {
-            throw new Error(`Text at index ${i}, column at index ${j}, paragraph at index ${k} must have a "content" string`);
-          }
+    // Validate paragraphs structure if present
+    if (hasParagraphs) {
+      for (let j = 0; j < text.paragraphs!.length; j++) {
+        const paragraph = text.paragraphs![j];
+        if (!paragraph.content || typeof paragraph.content !== 'string') {
+          throw new Error(`Text at index ${i}, paragraph at index ${j} must have a "content" string`);
         }
       }
     }
@@ -179,27 +172,23 @@ function createTextItem(textConfig: ConfigTextItem, index: number): TextItem {
     pauseDuration: textConfig.pauseDuration || 2000,
   };
 
-  // Handle multi-column or single column
-  if (textConfig.columns && textConfig.columns.length > 0) {
-    textItem.columns = textConfig.columns.map(col => ({
-      id: `col-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      width: col.width || 50,
-      paragraphs: col.paragraphs.map(para => ({
-        id: `para-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-        content: para.content,
-        fontSize: para.fontSize || 48,
-        fontColor: para.fontColor || '#ffffff',
-        fontWeight: para.fontWeight || 'bold',
-        textAlign: para.textAlign || 'center',
-        position: para.position || 'center',
-        isCode: para.isCode,
-        language: para.language,
-        highlightedTokens: para.isCode && para.language ?
-          highlightCode(para.content, para.language) : undefined,
-      })),
+  // Handle multi-paragraph or single paragraph
+  if (textConfig.paragraphs && textConfig.paragraphs.length > 0) {
+    textItem.paragraphs = textConfig.paragraphs.map(para => ({
+      id: `para-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      content: para.content,
+      fontSize: para.fontSize || 48,
+      fontColor: para.fontColor || '#ffffff',
+      fontWeight: para.fontWeight || 'bold',
+      textAlign: para.textAlign || 'center',
+      position: para.position || 'center',
+      isCode: para.isCode,
+      language: para.language,
+      highlightedTokens: para.isCode && para.language ?
+        highlightCode(para.content, para.language) : undefined,
     }));
   } else {
-    // Single column mode
+    // Single paragraph mode
     textItem.content = textConfig.content;
     textItem.fontSize = textConfig.fontSize || 48;
     textItem.fontColor = textConfig.fontColor || '#ffffff';
@@ -473,49 +462,39 @@ export const TextConfigImport: React.FC<TextConfigImportProps> = ({ open, onClos
       "isCode": false,                // Optional: enable syntax highlighting
       "language": "javascript"        // Optional: programming language
     },
-    // Multi-column mode
+    // Multi-paragraph mode
     {
       "animationDuration": 2000,
       "pauseDuration": 3000,
       "animationType": "fadeIn",
-      "columns": [
+      "paragraphs": [
         {
-          "width": 50,                // percentage of total width
-          "paragraphs": [
-            {
-              "content": "function greet(name) {\\n  return \`Hello, \${name}!\`;\\n}",
-              "fontSize": 36,
-              "fontColor": "#ffffff",
-              "fontWeight": "normal",
-              "textAlign": "left",
-              "position": "top",
-              "isCode": true,
-              "language": "javascript"
-            },
-            {
-              "content": "Second paragraph in column 1",
-              "fontSize": 24,
-              "fontColor": "#ff0000",
-              "fontWeight": "bold",
-              "textAlign": "center",
-              "position": "center"
-            }
-          ]
+          "content": "function greet(name) {\\n  return \`Hello, \${name}!\`;\\n}",
+          "fontSize": 36,
+          "fontColor": "#ffffff",
+          "fontWeight": "normal",
+          "textAlign": "left",
+          "position": "top",
+          "isCode": true,
+          "language": "javascript"
         },
         {
-          "width": 50,
-          "paragraphs": [
-            {
-              "content": "{\\"name\\": \\"John\\",\\n \\"age\\": 30}",
-              "fontSize": 36,
-              "fontColor": "#00ff00",
-              "fontWeight": "normal",
-              "textAlign": "right",
-              "position": "top",
-              "isCode": true,
-              "language": "json"
-            }
-          ]
+          "content": "This function creates a greeting message\\nusing template literals.",
+          "fontSize": 24,
+          "fontColor": "#cccccc",
+          "fontWeight": "normal",
+          "textAlign": "left",
+          "position": "center"
+        },
+        {
+          "content": "{\\"name\\": \\"John\\",\\n \\"age\\": 30,\\n \\"active\\": true}",
+          "fontSize": 32,
+          "fontColor": "#00ff00",
+          "fontWeight": "normal",
+          "textAlign": "left",
+          "position": "center",
+          "isCode": true,
+          "language": "json"
         }
       ]
     }

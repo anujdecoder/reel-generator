@@ -15,11 +15,10 @@ import {
   Card,
   CardContent,
   IconButton,
-  Divider,
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import CodeEditor from '@uiw/react-textarea-code-editor';
-import type { TextItem, AnimationType, TextPosition, TextColumn, TextParagraph } from '../../types';
+import type { TextItem, AnimationType, TextPosition, TextParagraph } from '../../types';
 import { editorStyles } from './styles';
 
 interface TextEditorProps {
@@ -45,14 +44,14 @@ export const TextEditor: React.FC<TextEditorProps> = ({
     onSaveText(text.id, { [field]: value });
   };
 
-  const isMultiColumn = text.columns && text.columns.length > 0;
+  const hasParagraphs = text.paragraphs && text.paragraphs.length > 0;
 
   const handleToggleMode = () => {
-    if (isMultiColumn) {
-      // Switch to single column - use first paragraph's content if available
-      const firstPara = text.columns?.[0]?.paragraphs?.[0];
+    if (hasParagraphs) {
+      // Switch to single paragraph - use first paragraph's content if available
+      const firstPara = text.paragraphs?.[0];
       onSaveText(text.id, {
-        columns: undefined,
+        paragraphs: undefined,
         content: firstPara?.content || '',
         fontSize: firstPara?.fontSize || text.fontSize,
         fontColor: firstPara?.fontColor || text.fontColor,
@@ -63,23 +62,30 @@ export const TextEditor: React.FC<TextEditorProps> = ({
         language: firstPara?.language || text.language,
       });
     } else {
-      // Switch to multi-column - create single column with current content
+      // Switch to multi-paragraph - create paragraphs from current content
+      const currentContent = text.content || '';
+      const paragraphs = currentContent.split('\n\n').filter(p => p.trim()).map((paraContent, index) => ({
+        id: `para-${Date.now()}-${index}`,
+        content: paraContent.trim(),
+        fontSize: text.fontSize || 48,
+        fontColor: text.fontColor || '#ffffff',
+        fontWeight: text.fontWeight || 'bold',
+        textAlign: text.textAlign || 'center',
+        position: text.position || 'center',
+        isCode: text.isCode,
+        language: text.language,
+      }));
+
       onSaveText(text.id, {
         content: undefined,
-        columns: [{
-          id: `col-${Date.now()}`,
-          width: 100,
-          paragraphs: [{
-            id: `para-${Date.now()}`,
-            content: text.content || '',
-            fontSize: text.fontSize || 48,
-            fontColor: text.fontColor || '#ffffff',
-            fontWeight: text.fontWeight || 'bold',
-            textAlign: text.textAlign || 'center',
-            position: text.position || 'center',
-            isCode: text.isCode,
-            language: text.language,
-          }],
+        paragraphs: paragraphs.length > 0 ? paragraphs : [{
+          id: `para-${Date.now()}`,
+          content: currentContent || 'New paragraph',
+          fontSize: text.fontSize || 48,
+          fontColor: text.fontColor || '#ffffff',
+          fontWeight: text.fontWeight || 'bold',
+          textAlign: text.textAlign || 'center',
+          position: text.position || 'center',
         }],
       });
     }
@@ -96,16 +102,16 @@ export const TextEditor: React.FC<TextEditorProps> = ({
         <FormControlLabel
           control={
             <Switch
-              checked={isMultiColumn}
+              checked={hasParagraphs}
               onChange={handleToggleMode}
             />
           }
-          label={isMultiColumn ? "Multi-Column Mode" : "Single Column Mode"}
+          label={hasParagraphs ? "Multi-Paragraph Mode" : "Single Paragraph Mode"}
         />
       </Box>
 
-      {isMultiColumn ? (
-        <MultiColumnEditor text={text} onSaveText={onSaveText} />
+      {hasParagraphs ? (
+        <MultiParagraphEditor text={text} onSaveText={onSaveText} />
       ) : (
         <>
           {/* Text Content */}
@@ -459,90 +465,42 @@ export const TextEditor: React.FC<TextEditorProps> = ({
   );
 };
 
-// Multi-Column Editor Component
-const MultiColumnEditor: React.FC<{ text: TextItem; onSaveText: (textId: string, updates: Partial<TextItem>) => void }> = ({
+// Multi-Paragraph Editor Component
+const MultiParagraphEditor: React.FC<{ text: TextItem; onSaveText: (textId: string, updates: Partial<TextItem>) => void }> = ({
   text,
   onSaveText,
 }) => {
-  const handleAddColumn = () => {
-    const newColumn = {
-      id: `col-${Date.now()}`,
-      width: 50, // Default width
-      paragraphs: [{
-        id: `para-${Date.now()}`,
-        content: 'New paragraph',
-        fontSize: 48,
-        fontColor: '#ffffff',
-        fontWeight: 'bold' as const,
-        textAlign: 'center' as const,
-        position: 'center' as const,
-      }],
+  const handleAddParagraph = () => {
+    const newParagraph = {
+      id: `para-${Date.now()}`,
+      content: 'New paragraph',
+      fontSize: 48,
+      fontColor: '#ffffff',
+      fontWeight: 'bold' as const,
+      textAlign: 'center' as const,
+      position: 'center' as const,
     };
 
-    const updatedColumns = [...(text.columns || []), newColumn];
-    onSaveText(text.id, { columns: updatedColumns });
+    const updatedParagraphs = [...(text.paragraphs || []), newParagraph];
+    onSaveText(text.id, { paragraphs: updatedParagraphs });
   };
 
-  const handleRemoveColumn = (columnId: string) => {
-    const updatedColumns = text.columns?.filter(col => col.id !== columnId) || [];
-    onSaveText(text.id, { columns: updatedColumns });
+  const handleRemoveParagraph = (paragraphId: string) => {
+    const updatedParagraphs = text.paragraphs?.filter(p => p.id !== paragraphId) || [];
+    onSaveText(text.id, { paragraphs: updatedParagraphs });
   };
 
-  const handleUpdateColumn = (columnId: string, updates: Partial<TextColumn>) => {
-    const updatedColumns = text.columns?.map(col =>
-      col.id === columnId ? { ...col, ...updates } : col
+  const handleUpdateParagraph = (paragraphId: string, updates: Partial<TextParagraph>) => {
+    const updatedParagraphs = text.paragraphs?.map(p =>
+      p.id === paragraphId ? { ...p, ...updates } : p
     ) || [];
-    onSaveText(text.id, { columns: updatedColumns });
-  };
-
-  const handleAddParagraph = (columnId: string) => {
-    const updatedColumns = text.columns?.map(col => {
-      if (col.id === columnId) {
-        const newParagraph = {
-          id: `para-${Date.now()}`,
-          content: 'New paragraph',
-          fontSize: 48,
-          fontColor: '#ffffff',
-          fontWeight: 'bold' as const,
-          textAlign: 'center' as const,
-          position: 'center' as const,
-        };
-        return { ...col, paragraphs: [...col.paragraphs, newParagraph] };
-      }
-      return col;
-    }) || [];
-    onSaveText(text.id, { columns: updatedColumns });
-  };
-
-  const handleRemoveParagraph = (columnId: string, paragraphId: string) => {
-    const updatedColumns = text.columns?.map(col => {
-      if (col.id === columnId) {
-        return { ...col, paragraphs: col.paragraphs.filter(p => p.id !== paragraphId) };
-      }
-      return col;
-    }) || [];
-    onSaveText(text.id, { columns: updatedColumns });
-  };
-
-  const handleUpdateParagraph = (columnId: string, paragraphId: string, updates: Partial<TextParagraph>) => {
-    const updatedColumns = text.columns?.map(col => {
-      if (col.id === columnId) {
-        return {
-          ...col,
-          paragraphs: col.paragraphs.map(p =>
-            p.id === paragraphId ? { ...p, ...updates } : p
-          )
-        };
-      }
-      return col;
-    }) || [];
-    onSaveText(text.id, { columns: updatedColumns });
+    onSaveText(text.id, { paragraphs: updatedParagraphs });
   };
 
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
-        Multi-Column Layout
+        Multi-Paragraph Layout
       </Typography>
 
       {/* Global Settings */}
@@ -592,188 +550,148 @@ const MultiColumnEditor: React.FC<{ text: TextItem; onSaveText: (textId: string,
         </Stack>
       </Box>
 
-      {/* Columns */}
+      {/* Paragraphs */}
       <Stack spacing={2}>
-        {text.columns?.map((column, columnIndex) => (
-          <Card key={column.id} variant="outlined">
+        {text.paragraphs?.map((paragraph, paraIndex) => (
+          <Card key={paragraph.id} variant="outlined">
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">Column {columnIndex + 1}</Typography>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography variant="caption">Width: {column.width}%</Typography>
-                  <Slider
-                    value={column.width}
-                    onChange={(_, value) => handleUpdateColumn(column.id, { width: value })}
-                    min={10}
-                    max={100}
-                    step={5}
-                    sx={{ width: 100 }}
-                    size="small"
-                  />
-                  <IconButton
-                    size="small"
-                    onClick={() => handleRemoveColumn(column.id)}
-                    disabled={text.columns?.length === 1}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </Stack>
+                <Typography variant="h6">Paragraph {paraIndex + 1}</Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => handleRemoveParagraph(paragraph.id)}
+                  disabled={text.paragraphs?.length === 1}
+                >
+                  <DeleteIcon />
+                </IconButton>
               </Box>
 
-              {/* Paragraphs in this column */}
-              <Stack spacing={2}>
-                {column.paragraphs.map((paragraph, paraIndex) => (
-                  <Box key={paragraph.id} sx={{ pl: 2, borderLeft: 2, borderColor: 'primary.main' }}>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Paragraph {paraIndex + 1}
-                    </Typography>
+              {/* Paragraph Content */}
+              <Box sx={{ mb: 2 }}>
+                {paragraph.isCode ? (
+                  <CodeEditor
+                    value={paragraph.content}
+                    language={paragraph.language || 'javascript'}
+                    placeholder="Enter your code here..."
+                    onChange={(evn) => handleUpdateParagraph(paragraph.id, { content: evn.target.value })}
+                    padding={10}
+                    data-color-mode="light"
+                    style={{
+                      fontSize: 12,
+                      backgroundColor: '#f6f8fa',
+                      fontFamily: 'ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace',
+                      borderRadius: 4,
+                      border: '1px solid #d1d9e0',
+                      minHeight: '80px',
+                    }}
+                  />
+                ) : (
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={3}
+                    label="Paragraph Content"
+                    value={paragraph.content}
+                    onChange={(e) => handleUpdateParagraph(paragraph.id, { content: e.target.value })}
+                  />
+                )}
+              </Box>
 
-                    {/* Paragraph Content */}
-                    <Box sx={{ mb: 1 }}>
-                      {paragraph.isCode ? (
-                        <CodeEditor
-                          value={paragraph.content}
-                          language={paragraph.language || 'javascript'}
-                          placeholder="Enter your code here..."
-                          onChange={(evn) => handleUpdateParagraph(column.id, paragraph.id, { content: evn.target.value })}
-                          padding={10}
-                          data-color-mode="light"
-                          style={{
-                            fontSize: 12,
-                            backgroundColor: '#f6f8fa',
-                            fontFamily: 'ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace',
-                            borderRadius: 4,
-                            border: '1px solid #d1d9e0',
-                            minHeight: '80px',
-                          }}
-                        />
-                      ) : (
-                        <TextField
-                          fullWidth
-                          multiline
-                          rows={2}
-                          size="small"
-                          value={paragraph.content}
-                          onChange={(e) => handleUpdateParagraph(column.id, paragraph.id, { content: e.target.value })}
-                        />
-                      )}
-                    </Box>
+              {/* Paragraph Settings */}
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                <FormControl sx={{ minWidth: 80 }}>
+                  <InputLabel size="small">Weight</InputLabel>
+                  <Select
+                    value={paragraph.fontWeight}
+                    label="Weight"
+                    onChange={(e) => handleUpdateParagraph(paragraph.id, { fontWeight: e.target.value })}
+                    size="small"
+                  >
+                    <MenuItem value="normal">Normal</MenuItem>
+                    <MenuItem value="bold">Bold</MenuItem>
+                  </Select>
+                </FormControl>
 
-                    {/* Paragraph Settings */}
-                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                      <FormControl sx={{ minWidth: 80 }}>
-                        <InputLabel size="small">Weight</InputLabel>
-                        <Select
-                          value={paragraph.fontWeight}
-                          label="Weight"
-                          onChange={(e) => handleUpdateParagraph(column.id, paragraph.id, { fontWeight: e.target.value })}
-                          size="small"
-                        >
-                          <MenuItem value="normal">Normal</MenuItem>
-                          <MenuItem value="bold">Bold</MenuItem>
-                        </Select>
-                      </FormControl>
+                <Box>
+                  <Typography variant="caption">Color</Typography>
+                  <input
+                    type="color"
+                    value={paragraph.fontColor}
+                    onChange={(e) => handleUpdateParagraph(paragraph.id, { fontColor: e.target.value })}
+                    style={{ width: 30, height: 30, border: 'none', cursor: 'pointer', borderRadius: 4 }}
+                  />
+                </Box>
 
-                      <Box>
-                        <Typography variant="caption">Color</Typography>
-                        <input
-                          type="color"
-                          value={paragraph.fontColor}
-                          onChange={(e) => handleUpdateParagraph(column.id, paragraph.id, { fontColor: e.target.value })}
-                          style={{ width: 30, height: 30, border: 'none', cursor: 'pointer', borderRadius: 4 }}
-                        />
-                      </Box>
+                <Box sx={{ minWidth: 60 }}>
+                  <Typography variant="caption">Size: {paragraph.fontSize}px</Typography>
+                  <Slider
+                    value={paragraph.fontSize}
+                    onChange={(_, value) => handleUpdateParagraph(paragraph.id, { fontSize: value })}
+                    min={12}
+                    max={120}
+                    step={2}
+                    size="small"
+                  />
+                </Box>
 
-                      <Box sx={{ minWidth: 60 }}>
-                        <Typography variant="caption">Size: {paragraph.fontSize}px</Typography>
-                        <Slider
-                          value={paragraph.fontSize}
-                          onChange={(_, value) => handleUpdateParagraph(column.id, paragraph.id, { fontSize: value })}
-                          min={12}
-                          max={120}
-                          step={2}
-                          size="small"
-                        />
-                      </Box>
+                <FormControl sx={{ minWidth: 80 }}>
+                  <InputLabel size="small">Align</InputLabel>
+                  <Select
+                    value={paragraph.textAlign}
+                    label="Align"
+                    onChange={(e) => handleUpdateParagraph(paragraph.id, { textAlign: e.target.value })}
+                    size="small"
+                  >
+                    <MenuItem value="left">Left</MenuItem>
+                    <MenuItem value="center">Center</MenuItem>
+                    <MenuItem value="right">Right</MenuItem>
+                  </Select>
+                </FormControl>
 
-                      <FormControl sx={{ minWidth: 80 }}>
-                        <InputLabel size="small">Align</InputLabel>
-                        <Select
-                          value={paragraph.textAlign}
-                          label="Align"
-                          onChange={(e) => handleUpdateParagraph(column.id, paragraph.id, { textAlign: e.target.value })}
-                          size="small"
-                        >
-                          <MenuItem value="left">Left</MenuItem>
-                          <MenuItem value="center">Center</MenuItem>
-                          <MenuItem value="right">Right</MenuItem>
-                        </Select>
-                      </FormControl>
+                <FormControl sx={{ minWidth: 80 }}>
+                  <InputLabel size="small">Position</InputLabel>
+                  <Select
+                    value={paragraph.position}
+                    label="Position"
+                    onChange={(e) => handleUpdateParagraph(paragraph.id, { position: e.target.value })}
+                    size="small"
+                  >
+                    <MenuItem value="top">Top</MenuItem>
+                    <MenuItem value="center">Center</MenuItem>
+                    <MenuItem value="bottom">Bottom</MenuItem>
+                  </Select>
+                </FormControl>
 
-                      <FormControl sx={{ minWidth: 80 }}>
-                        <InputLabel size="small">Position</InputLabel>
-                        <Select
-                          value={paragraph.position}
-                          label="Position"
-                          onChange={(e) => handleUpdateParagraph(column.id, paragraph.id, { position: e.target.value })}
-                          size="small"
-                        >
-                          <MenuItem value="top">Top</MenuItem>
-                          <MenuItem value="center">Center</MenuItem>
-                          <MenuItem value="bottom">Bottom</MenuItem>
-                        </Select>
-                      </FormControl>
+                {/* Code toggle */}
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={paragraph.isCode || false}
+                      onChange={(e) => handleUpdateParagraph(paragraph.id, { isCode: e.target.checked })}
+                      size="small"
+                    />
+                  }
+                  label="Code"
+                />
 
-                      {/* Code toggle */}
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={paragraph.isCode || false}
-                            onChange={(e) => handleUpdateParagraph(column.id, paragraph.id, { isCode: e.target.checked })}
-                            size="small"
-                          />
-                        }
-                        label="Code"
-                      />
-
-                      {paragraph.isCode && (
-                        <FormControl sx={{ minWidth: 100 }}>
-                          <InputLabel size="small">Lang</InputLabel>
-                          <Select
-                            value={paragraph.language || 'javascript'}
-                            label="Lang"
-                            onChange={(e) => handleUpdateParagraph(column.id, paragraph.id, { language: e.target.value })}
-                            size="small"
-                          >
-                            <MenuItem value="javascript">JS</MenuItem>
-                            <MenuItem value="typescript">TS</MenuItem>
-                            <MenuItem value="python">Python</MenuItem>
-                            <MenuItem value="css">CSS</MenuItem>
-                            <MenuItem value="json">JSON</MenuItem>
-                          </Select>
-                        </FormControl>
-                      )}
-
-                      <IconButton
-                        size="small"
-                        onClick={() => handleRemoveParagraph(column.id, paragraph.id)}
-                        disabled={column.paragraphs.length === 1}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Stack>
-                  </Box>
-                ))}
+                {paragraph.isCode && (
+                  <FormControl sx={{ minWidth: 100 }}>
+                    <InputLabel size="small">Lang</InputLabel>
+                    <Select
+                      value={paragraph.language || 'javascript'}
+                      label="Lang"
+                      onChange={(e) => handleUpdateParagraph(paragraph.id, { language: e.target.value })}
+                      size="small"
+                    >
+                      <MenuItem value="javascript">JS</MenuItem>
+                      <MenuItem value="typescript">TS</MenuItem>
+                      <MenuItem value="python">Python</MenuItem>
+                      <MenuItem value="css">CSS</MenuItem>
+                      <MenuItem value="json">JSON</MenuItem>
+                    </Select>
+                  </FormControl>
+                )}
               </Stack>
-
-              <Divider sx={{ my: 2 }} />
-              <Button
-                size="small"
-                startIcon={<AddIcon />}
-                onClick={() => handleAddParagraph(column.id)}
-              >
-                Add Paragraph
-              </Button>
             </CardContent>
           </Card>
         ))}
@@ -783,9 +701,9 @@ const MultiColumnEditor: React.FC<{ text: TextItem; onSaveText: (textId: string,
         <Button
           variant="outlined"
           startIcon={<AddIcon />}
-          onClick={handleAddColumn}
+          onClick={handleAddParagraph}
         >
-          Add Column
+          Add Paragraph
         </Button>
       </Box>
     </Box>
