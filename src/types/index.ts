@@ -39,6 +39,7 @@ export interface HighlightedToken {
   color: string;
   isBold?: boolean;
   isItalic?: boolean;
+  isNewline?: boolean;
 }
 
 export interface TextItem {

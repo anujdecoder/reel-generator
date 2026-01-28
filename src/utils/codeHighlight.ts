@@ -99,72 +99,104 @@ export const highlightCode = (code: string, language: string): HighlightedToken[
   code = code.replace(/^```(\w+)?\n/, '').replace(/\n```$/, '');
 
   try {
-    // Use Prism to highlight
-    const grammar = Prism.languages[language] || Prism.languages.javascript;
-    const highlighted = Prism.highlight(code, grammar, language);
+    // Split code into lines to preserve formatting
+    const lines = code.split('\n');
+    const allTokens: HighlightedToken[] = [];
 
-    // Parse the HTML output to extract tokens
-    const tokens: HighlightedToken[] = [];
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(`<pre><code>${highlighted}</code></pre>`, 'text/html');
-    const codeElement = doc.querySelector('code');
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
 
-    if (codeElement) {
-      const walk = (node: Node) => {
-        if (node.nodeType === Node.TEXT_NODE) {
-          tokens.push({
-            text: node.textContent || '',
-            color: '#ffffff', // default color
-          });
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-          const element = node as Element;
-          const className = element.className || '';
-          let color = '#ffffff';
-          let isBold = false;
-          let isItalic = false;
+      if (line.length === 0) {
+        // Empty line - add a newline token
+        allTokens.push({ text: '', color: '#ffffff' });
+      } else {
+        // Highlight this line
+        const grammar = Prism.languages[language] || Prism.languages.javascript;
+        const highlighted = Prism.highlight(line, grammar, language);
 
-          // Map Prism classes to colors
-          if (className.includes('token keyword')) color = '#569cd6';
-          else if (className.includes('token string')) color = '#ce9178';
-          else if (className.includes('token comment')) color = '#6a9955';
-          else if (className.includes('token number')) color = '#b5cea8';
-          else if (className.includes('token function')) color = '#dcdcaa';
-          else if (className.includes('token operator')) color = '#d4d4d4';
-          else if (className.includes('token punctuation')) color = '#d4d4d4';
-          else if (className.includes('token class-name')) color = '#4ec9b0';
-          else if (className.includes('token builtin')) color = '#4ec9b0';
-          else if (className.includes('token property')) color = '#9cdcfe';
-          else if (className.includes('token variable')) color = '#9cdcfe';
+        // Parse the HTML output to extract tokens
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(`<code>${highlighted}</code>`, 'text/html');
+        const codeElement = doc.querySelector('code');
 
-          // Handle font styles
-          if (className.includes('token bold')) isBold = true;
-          if (className.includes('token italic')) isItalic = true;
+        if (codeElement) {
+          const walk = (node: Node) => {
+            if (node.nodeType === Node.TEXT_NODE) {
+              const text = node.textContent || '';
+              if (text) {
+                allTokens.push({
+                  text,
+                  color: '#ffffff', // default color
+                });
+              }
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+              const element = node as Element;
+              const className = element.className || '';
+              let color = '#ffffff';
+              let isBold = false;
+              let isItalic = false;
 
-          // Process child nodes
-          for (const child of element.childNodes) {
-            if (child.nodeType === Node.TEXT_NODE) {
-              tokens.push({
-                text: child.textContent || '',
-                color,
-                isBold,
-                isItalic,
-              });
-            } else if (child.nodeType === Node.ELEMENT_NODE) {
-              walk(child);
+              // Map Prism classes to colors
+              if (className.includes('token keyword')) color = '#569cd6';
+              else if (className.includes('token string')) color = '#ce9178';
+              else if (className.includes('token comment')) color = '#6a9955';
+              else if (className.includes('token number')) color = '#b5cea8';
+              else if (className.includes('token function')) color = '#dcdcaa';
+              else if (className.includes('token operator')) color = '#d4d4d4';
+              else if (className.includes('token punctuation')) color = '#d4d4d4';
+              else if (className.includes('token class-name')) color = '#4ec9b0';
+              else if (className.includes('token builtin')) color = '#4ec9b0';
+              else if (className.includes('token property')) color = '#9cdcfe';
+              else if (className.includes('token variable')) color = '#9cdcfe';
+
+              // Handle font styles
+              if (className.includes('token bold')) isBold = true;
+              if (className.includes('token italic')) isItalic = true;
+
+              // Process child nodes
+              for (const child of element.childNodes) {
+                if (child.nodeType === Node.TEXT_NODE) {
+                  const text = child.textContent || '';
+                  if (text) {
+                    allTokens.push({
+                      text,
+                      color,
+                      isBold,
+                      isItalic,
+                    });
+                  }
+                } else if (child.nodeType === Node.ELEMENT_NODE) {
+                  walk(child);
+                }
+              }
             }
-          }
-        }
-      };
+          };
 
-      for (const child of codeElement.childNodes) {
-        walk(child);
+          for (const child of codeElement.childNodes) {
+            walk(child);
+          }
+        } else {
+          // Fallback for this line
+          allTokens.push({ text: line, color: '#ffffff' });
+        }
+      }
+
+      // Add newline marker (except for the last line)
+      if (i < lines.length - 1) {
+        allTokens.push({ text: '\n', color: '#ffffff', isNewline: true });
       }
     }
 
-    return tokens;
+    return allTokens;
   } catch (error) {
     console.warn('Syntax highlighting failed:', error);
-    // Fallback to plain text
-    return [{ text: code, color: '#ffffff' }];
+    // Fallback to plain text with preserved lines
+    return code.split('\n').flatMap((line, index, arr) => {
+      const tokens: HighlightedToken[] = [{ text: line, color: '#ffffff' }];
+      if (index < arr.length - 1) {
+        tokens.push({ text: '\n', color: '#ffffff', isNewline: true });
+      }
+      return tokens;
+    });
   }
 };

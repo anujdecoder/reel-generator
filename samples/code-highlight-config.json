@@ -20,7 +20,7 @@
       "pauseDuration": 2000
     },
     {
-      "content": "function fibonacci(n) {\n  if (n <= 1) return n;\n  return fibonacci(n - 1) + fibonacci(n - 2);\n}\n\nconsole.log(fibonacci(10));",
+      "content": "function fibonacci(n) {\n  if (n <= 1) return n;\n  return fibonacci(n - 1) +\n         fibonacci(n - 2);\n}\n\nconsole.log(fibonacci(10));\n// Output: 55",
       "animationType": "fadeIn",
       "fontSize": 48,
       "fontColor": "#ffffff",
@@ -33,7 +33,7 @@
       "language": "javascript"
     },
     {
-      "content": "class Animal {\n  constructor(name) {\n    this.name = name;\n  }\n\n  speak() {\n    console.log(`${this.name} makes a sound.`);\n  }\n}",
+      "content": "interface User {\n  name: string;\n  age: number;\n  email?: string;\n}\n\nconst user: User = {\n  name: \"John\",\n  age: 30\n};",
       "animationType": "fadeIn",
       "fontSize": 48,
       "fontColor": "#ffffff",
@@ -43,12 +43,12 @@
       "animationDuration": 3000,
       "pauseDuration": 4000,
       "isCode": true,
-      "language": "javascript"
+      "language": "typescript"
     },
     {
-      "content": "SELECT users.name, orders.total\nFROM users\nJOIN orders ON users.id = orders.user_id\nWHERE orders.total > 100\nORDER BY orders.total DESC;",
+      "content": "{\n  \"name\": \"John Doe\",\n  \"age\": 30,\n  \"city\": \"New York\",\n  \"hobbies\": [\n    \"reading\",\n    \"coding\"\n  ]\n}",
       "animationType": "fadeIn",
-      "fontSize": 48,
+      "fontSize": 36,
       "fontColor": "#ffffff",
       "fontWeight": "normal",
       "textAlign": "left",
@@ -56,7 +56,7 @@
       "animationDuration": 2500,
       "pauseDuration": 3500,
       "isCode": true,
-      "language": "sql"
+      "language": "json"
     }
   ]
 }

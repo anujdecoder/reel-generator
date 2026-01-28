@@ -12,6 +12,7 @@ import {
   Switch,
   FormControlLabel,
 } from '@mui/material';
+import CodeEditor from '@uiw/react-textarea-code-editor';
 import type { TextItem, AnimationType, TextPosition } from '../../types';
 import { editorStyles } from './styles';
 
@@ -46,14 +47,38 @@ export const TextEditor: React.FC<TextEditorProps> = ({
 
       {/* Text Content */}
       <Box sx={{ mb: 2 }}>
-        <TextField
-          fullWidth
-          multiline
-          rows={4}
-          label="Text Content"
-          value={text.content}
-          onChange={(e) => handleChange('content', e.target.value)}
-        />
+        {text.isCode ? (
+          <Box sx={{ position: 'relative' }}>
+            <Typography variant="body2" sx={{ mb: 1, fontWeight: 'bold' }}>
+              Code Content
+            </Typography>
+            <CodeEditor
+              value={text.content}
+              language={text.language || 'javascript'}
+              placeholder="Enter your code here..."
+              onChange={(evn) => handleChange('content', evn.target.value)}
+              padding={15}
+              data-color-mode="light"
+              style={{
+                fontSize: 14,
+                backgroundColor: '#f6f8fa',
+                fontFamily: 'ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace',
+                borderRadius: 4,
+                border: '1px solid #d1d9e0',
+                minHeight: '120px',
+              }}
+            />
+          </Box>
+        ) : (
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            label="Text Content"
+            value={text.content}
+            onChange={(e) => handleChange('content', e.target.value)}
+          />
+        )}
       </Box>
 
       {/* Code Detection */}

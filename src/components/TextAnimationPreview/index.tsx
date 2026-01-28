@@ -197,82 +197,77 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
       (text as any).highlightedTokens = tokens;
     }
 
-    // Calculate total characters for typewriter effect
-    const totalChars = tokens.reduce((sum, token) => sum + token.text.length, 0);
+    // Split tokens into lines based on newline markers
+    const lines: HighlightedToken[][] = [];
+    let currentLine: HighlightedToken[] = [];
+
+    for (const token of tokens) {
+      if (token.isNewline) {
+        lines.push(currentLine);
+        currentLine = [];
+      } else {
+        currentLine.push(token);
+      }
+    }
+    if (currentLine.length > 0) {
+      lines.push(currentLine);
+    }
+
+    // Calculate total characters for typewriter effect (excluding newlines)
+    const totalChars = tokens.filter(t => !t.isNewline).reduce((sum, token) => sum + token.text.length, 0);
     const displayChars = text.animationType === 'typewriter'
       ? Math.floor(progress * totalChars)
       : totalChars;
 
-    // Build lines with word wrapping
-    const lines: Array<{ tokens: typeof tokens, startIndex: number, endIndex: number }> = [];
-    let currentLine: typeof tokens = [];
-    let currentWidth = 0;
-    let charIndex = 0;
-
     ctx.font = `${text.fontWeight} ${text.fontSize}px monospace`;
-    const maxWidth = dimensions.width * 0.8;
 
-    for (let i = 0; i < tokens.length; i++) {
-      const token = tokens[i];
-      const tokenText = token.text;
-      const tokenWidth = ctx.measureText(tokenText).width;
-
-      if (currentWidth + tokenWidth > maxWidth && currentLine.length > 0) {
-        // Start new line
-        lines.push({
-          tokens: currentLine,
-          startIndex: charIndex - currentLine.reduce((sum, t) => sum + t.text.length, 0),
-          endIndex: charIndex - 1
-        });
-        currentLine = [];
-        currentWidth = 0;
-      }
-
-      currentLine.push(token);
-      currentWidth += tokenWidth;
-      charIndex += tokenText.length;
-    }
-
-    if (currentLine.length > 0) {
-      lines.push({
-        tokens: currentLine,
-        startIndex: charIndex - currentLine.reduce((sum, t) => sum + t.text.length, 0),
-        endIndex: charIndex - 1
-      });
-    }
-
-    // Draw lines
+    // Calculate font size to ensure all text fits vertically
     const lineHeight = text.fontSize * 1.2;
     const totalHeight = lines.length * lineHeight;
-    const startY = -totalHeight / 2 + lineHeight / 2;
+    const maxHeight = dimensions.height * 0.8;
 
+    let effectiveFontSize = text.fontSize;
+    if (totalHeight > maxHeight) {
+      effectiveFontSize = Math.max(12, (maxHeight / lines.length) / 1.2);
+    }
+
+    // Draw lines (left-aligned, not centered)
+    const effectiveLineHeight = effectiveFontSize * 1.2;
+    const startX = -dimensions.width * 0.45; // Left align within video
+    const startY = -totalHeight / 2 + effectiveLineHeight / 2;
+
+    let charCount = 0;
     lines.forEach((line, lineIndex) => {
-      let x = -currentWidth / 2; // Center the line
-      const y = startY + lineIndex * lineHeight;
+      const y = startY + lineIndex * effectiveLineHeight;
+      let x = startX;
 
-      for (const token of line.tokens) {
+      for (const token of line) {
         // Check if this token should be displayed in typewriter mode
-        if (text.animationType === 'typewriter' && line.endIndex > displayChars) {
-          if (line.startIndex >= displayChars) continue; // Skip entire token
-
-          // Partial token display
-          const remainingChars = displayChars - line.startIndex;
-          const partialText = token.text.substring(0, remainingChars);
-          if (partialText) {
-            ctx.fillStyle = token.color;
-            ctx.font = `${token.isBold ? 'bold' : text.fontWeight} ${text.fontSize}px monospace`;
-            ctx.fillText(partialText, x, y);
+        if (text.animationType === 'typewriter') {
+          const tokenChars = token.text.length;
+          if (charCount + tokenChars > displayChars) {
+            // Partial token display
+            const remainingChars = displayChars - charCount;
+            if (remainingChars > 0) {
+              const partialText = token.text.substring(0, remainingChars);
+              ctx.fillStyle = token.color;
+              ctx.font = `${token.isBold ? 'bold' : text.fontWeight} ${effectiveFontSize}px monospace`;
+              ctx.fillText(partialText, x, y);
+            }
+            return; // Stop rendering this line
           }
-          break; // Don't draw more tokens in this line
         }
 
         ctx.fillStyle = token.color;
-        ctx.font = `${token.isBold ? 'bold' : text.fontWeight} ${text.fontSize}px monospace`;
+        ctx.font = `${token.isBold ? 'bold' : text.fontWeight} ${effectiveFontSize}px monospace`;
         ctx.fillText(token.text, x, y);
         x += ctx.measureText(token.text).width;
+        charCount += token.text.length;
       }
     });
   };
+
+
 
   // Animation style helper
   const getAnimationStyle = (text: TextItem, progress: number) => {
