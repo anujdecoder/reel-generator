@@ -3,7 +3,7 @@
     "animationDuration": 2000,
     "pauseDuration": 3000,
     "animationType": "fadeIn",
-    "videoDimensions": "1080x1920",
+    "videoDimensions": "1920x1080",
     "videoQuality": "high",
     "backgroundColor": "#1e1e1e"
   },

@@ -71,11 +71,18 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
     return { fps, totalDuration, totalFrames };
   }, [texts]);
 
-  // Get canvas dimensions
+  // Get canvas dimensions - use landscape for multi-column content
   const canvasDimensions = useMemo(() => {
-    const preset = VIDEO_DIMENSION_PRESETS[config.videoDimensions];
+    // Check if any text item uses columns
+    const hasMultiColumnContent = texts.some(text => text.columns && text.columns.length > 1);
+
+    const dimensionKey: VideoDimensions = hasMultiColumnContent
+      ? '1920x1080' // 16:9 landscape
+      : config.videoDimensions;
+
+    const preset = VIDEO_DIMENSION_PRESETS[dimensionKey];
     return { width: preset.width, height: preset.height };
-  }, [config.videoDimensions]);
+  }, [config.videoDimensions, texts]);
 
   // Render text to canvas with word wrapping and syntax highlighting
   const renderTextToCanvas = useCallback((ctx: CanvasRenderingContext2D, text: TextItem, progress: number, dimensions: { width: number; height: number }) => {
@@ -191,29 +198,65 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
 
   // Render multi-column text
   const renderMultiColumnText = (ctx: CanvasRenderingContext2D, text: TextItem, progress: number, dimensions: { width: number; height: number }) => {
-    if (!text.columns) return;
+    if (!text.columns || text.columns.length === 0) return;
 
     const totalWidth = dimensions.width * 0.9; // Use 90% of available width
+    const totalHeight = dimensions.height * 0.9; // Use 90% of available height
     const startX = -totalWidth / 2;
-    let currentX = startX;
+    const startY = -totalHeight / 2;
 
-    text.columns.forEach((column) => {
+    text.columns!.forEach((column, columnIndex) => {
       const columnWidth = totalWidth * (column.width / 100);
-      const columnDimensions = { width: columnWidth, height: dimensions.height };
+      const columnX = startX + (totalWidth * columnIndex / text.columns!.length);
 
-      // Render each paragraph in the column
-      let columnY = -dimensions.height / 2 + 50; // Start near top
+      // Calculate total height needed for all paragraphs in this column
+      let totalColumnContentHeight = 0;
+      const paragraphHeights: number[] = [];
+      const firstParagraphFontSize = column.paragraphs[0]?.fontSize || 48;
 
       column.paragraphs.forEach((paragraph) => {
+        // Estimate height for this paragraph
+        const fontSize = paragraph.fontSize || 48;
+        const lineHeight = fontSize * 1.2;
+
+        if (paragraph.isCode && paragraph.language) {
+          // For code, count lines and estimate height
+          const lines = paragraph.content.split('\n').length;
+          const estimatedHeight = lines * lineHeight;
+          paragraphHeights.push(estimatedHeight);
+          totalColumnContentHeight += estimatedHeight;
+        } else {
+          // For text, estimate based on content length
+          const lines = paragraph.content.split('\n');
+          const estimatedHeight = lines.length * lineHeight;
+          paragraphHeights.push(estimatedHeight);
+          totalColumnContentHeight += estimatedHeight;
+        }
+
+        // Add some spacing between paragraphs
+        totalColumnContentHeight += lineHeight * 0.5;
+      });
+
+      // Remove the last spacing
+      totalColumnContentHeight -= (paragraphHeights.length > 0 ? firstParagraphFontSize * 1.2 * 0.5 : 0);
+
+      // Scale down if content is too tall
+      const scaleFactor = Math.min(1, totalHeight / totalColumnContentHeight);
+      const effectiveLineHeight = scaleFactor < 1 ? firstParagraphFontSize * 1.2 * scaleFactor : firstParagraphFontSize * 1.2;
+
+      // Render each paragraph in the column
+      let currentY = startY;
+
+      column.paragraphs.forEach((paragraph, paraIndex) => {
         // Temporarily modify text object for rendering
         const tempText: TextItem = {
           ...text,
           content: paragraph.content,
-          fontSize: paragraph.fontSize,
+          fontSize: scaleFactor < 1 ? (paragraph.fontSize || 48) * scaleFactor : paragraph.fontSize,
           fontColor: paragraph.fontColor,
           fontWeight: paragraph.fontWeight,
           textAlign: paragraph.textAlign,
-          position: paragraph.position,
+          position: 'top', // Override to top since we're manually positioning
           isCode: paragraph.isCode,
           language: paragraph.language,
           highlightedTokens: paragraph.highlightedTokens,
@@ -223,22 +266,10 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
         ctx.save();
 
         // Position for this paragraph within the column
-        const paraCenterX = currentX + columnWidth / 2;
-        let paraCenterY = columnY;
+        const paraCenterX = columnX + columnWidth / 2;
+        const paraTopY = currentY;
 
-        switch (paragraph.position) {
-          case 'top':
-            paraCenterY = columnY;
-            break;
-          case 'center':
-            paraCenterY = columnY;
-            break;
-          case 'bottom':
-            paraCenterY = columnY;
-            break;
-        }
-
-        ctx.translate(paraCenterX, paraCenterY);
+        ctx.translate(paraCenterX, paraTopY);
 
         // Apply animation (simplified - could be enhanced per paragraph)
         const animationStyle = getAnimationStyle(text, progress);
@@ -246,18 +277,16 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
 
         // Render the paragraph
         if (paragraph.isCode && paragraph.language) {
-          renderHighlightedCode(ctx, tempText, progress, columnDimensions);
+          renderHighlightedCode(ctx, tempText, progress, { width: columnWidth * 0.9, height: paragraphHeights[paraIndex] });
         } else {
-          renderPlainText(ctx, tempText, progress, columnDimensions);
+          renderPlainText(ctx, tempText, progress, { width: columnWidth * 0.9, height: paragraphHeights[paraIndex] });
         }
 
         ctx.restore();
 
         // Move down for next paragraph
-        columnY += 100; // Fixed spacing - could be made configurable
+        currentY += paragraphHeights[paraIndex] + effectiveLineHeight * 0.5;
       });
-
-      currentX += columnWidth;
     });
   };
 
