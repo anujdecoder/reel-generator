@@ -21,6 +21,7 @@
     "@ffmpeg/util": "^0.12.2",
     "@mui/icons-material": "^7.3.7",
     "@mui/material": "^7.3.7",
+    "prismjs": "^1.30.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.0"
@@ -31,6 +32,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/fluent-ffmpeg": "^2.1.27",
     "@types/node": "^24.10.1",
+    "@types/prismjs": "^1.26.5",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",

@@ -30,6 +30,7 @@ import type {
   TextAnimationConfig,
   ConfigTextItem,
 } from '../../types';
+import { highlightCode } from '../../utils/codeHighlight';
 
 interface TextConfigImportProps {
   open: boolean;
@@ -66,15 +67,17 @@ const EXAMPLE_CONFIG: TextAnimationConfigJSON = {
       position: 'center',
     },
     {
-      content: 'This is the\nsecond slide',
-      animationDuration: 1000,
-      pauseDuration: 2500,
+      content: 'function greet(name) {\n  return `Hello, ${name}!`;\n}\n\ngreet("World");',
+      animationDuration: 2000,
+      pauseDuration: 3000,
       animationType: 'fadeIn',
-      fontSize: 42,
-      fontColor: '#ff6b6b',
+      fontSize: 36,
+      fontColor: '#ffffff',
       fontWeight: 'normal',
       textAlign: 'center',
       position: 'center',
+      isCode: true,
+      language: 'javascript',
     },
     {
       content: 'The End',
@@ -143,7 +146,7 @@ function parseConfig(jsonString: string): TextAnimationConfigJSON {
 }
 
 function createTextItem(textConfig: ConfigTextItem, index: number): TextItem {
-  return {
+  const textItem: TextItem = {
     id: `imported-${Date.now()}-${index}`,
     content: textConfig.content,
     animationType: textConfig.animationType || 'typewriter',
@@ -155,7 +158,16 @@ function createTextItem(textConfig: ConfigTextItem, index: number): TextItem {
     fontWeight: textConfig.fontWeight || 'bold',
     textAlign: textConfig.textAlign || 'center',
     position: textConfig.position || 'center',
+    isCode: textConfig.isCode,
+    language: textConfig.language,
   };
+
+  // Cache highlighted tokens if this is code
+  if (textItem.isCode && textItem.language) {
+    textItem.highlightedTokens = highlightCode(textItem.content, textItem.language);
+  }
+
+  return textItem;
 }
 
 export const TextConfigImport: React.FC<TextConfigImportProps> = ({ open, onClose, onImport }) => {
@@ -407,7 +419,9 @@ export const TextConfigImport: React.FC<TextConfigImportProps> = ({ open, onClos
       "fontColor": "#ffffff",
       "fontWeight": "bold",           // normal | bold
       "textAlign": "center",          // left | center | right
-      "position": "center"            // top | center | bottom
+      "position": "center",           // top | center | bottom
+      "isCode": false,                // Optional: enable syntax highlighting
+      "language": "javascript"        // Optional: programming language
     }
   ],
   "music": {                         // Optional

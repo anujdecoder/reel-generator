@@ -1,0 +1,62 @@
+{
+  "globalConfig": {
+    "animationDuration": 2000,
+    "pauseDuration": 3000,
+    "animationType": "fadeIn",
+    "videoDimensions": "1080x1920",
+    "videoQuality": "high",
+    "backgroundColor": "#1e1e1e"
+  },
+  "texts": [
+    {
+      "content": "Code Highlighting Demo",
+      "animationType": "typewriter",
+      "fontSize": 64,
+      "fontColor": "#ffffff",
+      "fontWeight": "bold",
+      "textAlign": "center",
+      "position": "center",
+      "animationDuration": 1500,
+      "pauseDuration": 2000
+    },
+    {
+      "content": "function fibonacci(n) {\n  if (n <= 1) return n;\n  return fibonacci(n - 1) + fibonacci(n - 2);\n}\n\nconsole.log(fibonacci(10));",
+      "animationType": "fadeIn",
+      "fontSize": 48,
+      "fontColor": "#ffffff",
+      "fontWeight": "normal",
+      "textAlign": "left",
+      "position": "center",
+      "animationDuration": 3000,
+      "pauseDuration": 4000,
+      "isCode": true,
+      "language": "javascript"
+    },
+    {
+      "content": "class Animal {\n  constructor(name) {\n    this.name = name;\n  }\n\n  speak() {\n    console.log(`${this.name} makes a sound.`);\n  }\n}",
+      "animationType": "fadeIn",
+      "fontSize": 48,
+      "fontColor": "#ffffff",
+      "fontWeight": "normal",
+      "textAlign": "left",
+      "position": "center",
+      "animationDuration": 3000,
+      "pauseDuration": 4000,
+      "isCode": true,
+      "language": "javascript"
+    },
+    {
+      "content": "SELECT users.name, orders.total\nFROM users\nJOIN orders ON users.id = orders.user_id\nWHERE orders.total > 100\nORDER BY orders.total DESC;",
+      "animationType": "fadeIn",
+      "fontSize": 48,
+      "fontColor": "#ffffff",
+      "fontWeight": "normal",
+      "textAlign": "left",
+      "position": "center",
+      "animationDuration": 2500,
+      "pauseDuration": 3500,
+      "isCode": true,
+      "language": "sql"
+    }
+  ]
+}

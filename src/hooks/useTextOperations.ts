@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import type { TextItem } from '../types';
+import { detectCode, highlightCode } from '../utils/codeHighlight';
 
 interface UseTextOperationsProps {
   texts: TextItem[];
@@ -29,10 +30,11 @@ export const useTextOperations = ({
   }, [texts]);
 
   const handleAddText = useCallback((content: string = '') => {
+    const { isCode, language } = detectCode(content);
     const newText: TextItem = {
       id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       content,
-      animationType: 'typewriter',
+      animationType: isCode ? 'fadeIn' : 'typewriter',
       animationDuration: 1000,
       pauseDuration: 2000,
       fontSize: 48,
@@ -40,7 +42,15 @@ export const useTextOperations = ({
       fontWeight: 'bold',
       textAlign: 'center',
       position: 'center',
+      isCode,
+      language,
     };
+
+    // Cache highlighted tokens if this is code
+    if (isCode && language) {
+      newText.highlightedTokens = highlightCode(content, language);
+    }
+
     setTexts((prev) => [...prev, newText]);
     if (!selectedText) {
       setSelectedText(newText);
@@ -61,12 +71,40 @@ export const useTextOperations = ({
 
   const handleSaveText = useCallback((textId: string, updates: Partial<TextItem>) => {
     setTexts((prev) =>
-      prev.map((txt) =>
-        txt.id === textId ? { ...txt, ...updates } : txt
-      )
+      prev.map((txt) => {
+        if (txt.id === textId) {
+          const updated = { ...txt, ...updates };
+
+          // Cache highlighted tokens if this is code
+          if (updated.isCode && updated.language && (updates.content || updates.language || updates.isCode !== txt.isCode)) {
+            updated.highlightedTokens = highlightCode(updated.content, updated.language);
+          } else if (!updated.isCode) {
+            // Clear tokens if no longer code
+            updated.highlightedTokens = undefined;
+          }
+
+          return updated;
+        }
+        return txt;
+      })
     );
     // Update selected text if it's the one being edited
-    setSelectedText(prev => prev?.id === textId ? { ...prev, ...updates } : prev);
+    setSelectedText(prev => {
+      if (prev?.id === textId) {
+        const updated = { ...prev, ...updates };
+
+        // Cache highlighted tokens if this is code
+        if (updated.isCode && updated.language && (updates.content || updates.language || updates.isCode !== prev.isCode)) {
+          updated.highlightedTokens = highlightCode(updated.content, updated.language);
+        } else if (!updated.isCode) {
+          // Clear tokens if no longer code
+          updated.highlightedTokens = undefined;
+        }
+
+        return updated;
+      }
+      return prev;
+    });
   }, [setTexts, setSelectedText]);
 
   const handleClearAll = useCallback(() => {

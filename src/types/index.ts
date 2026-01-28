@@ -34,6 +34,13 @@ export interface ImageItem {
   transitionType?: TransitionType; // Transition to next image
 }
 
+export interface HighlightedToken {
+  text: string;
+  color: string;
+  isBold?: boolean;
+  isItalic?: boolean;
+}
+
 export interface TextItem {
   id: string;
   content: string;
@@ -46,6 +53,9 @@ export interface TextItem {
   fontWeight: 'normal' | 'bold';
   textAlign: 'left' | 'center' | 'right';
   position: TextPosition;
+  isCode?: boolean; // Whether this text is code that should be syntax highlighted
+  language?: string; // Programming language for syntax highlighting
+  highlightedTokens?: HighlightedToken[]; // Cached highlighted tokens for rendering
 }
 
 export interface MusicTrack {
@@ -147,6 +157,8 @@ export interface ConfigTextItem {
   fontWeight?: 'normal' | 'bold';
   textAlign?: 'left' | 'center' | 'right';
   position?: TextPosition;
+  isCode?: boolean;
+  language?: string;
 }
 
 export const VIDEO_DIMENSION_PRESETS: Record<VideoDimensions, {

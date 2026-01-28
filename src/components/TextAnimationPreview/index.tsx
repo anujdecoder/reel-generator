@@ -30,6 +30,8 @@ import {
   checkFFmpegEnvironment,
   QUALITY_PRESETS
 } from '../../utils/videoConverter';
+import { highlightCode } from '../../utils/codeHighlight';
+import type { HighlightedToken } from '../../types';
 
 interface TextAnimationPreviewProps {
   texts: TextItem[];
@@ -75,20 +77,14 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
     return { width: preset.width, height: preset.height };
   }, [config.videoDimensions]);
 
-  // Render text to canvas with word wrapping
+  // Render text to canvas with word wrapping and syntax highlighting
   const renderTextToCanvas = useCallback((ctx: CanvasRenderingContext2D, text: TextItem, progress: number, dimensions: { width: number; height: number }) => {
     // Clear canvas with background color
     ctx.fillStyle = config.backgroundColor || '#000000';
     ctx.fillRect(0, 0, dimensions.width, dimensions.height);
 
-    // Set text properties
-    ctx.fillStyle = text.fontColor;
-    ctx.font = `${text.fontWeight} ${text.fontSize}px Arial`; // Using Arial as fallback
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
     // Position text
-    let centerX = dimensions.width / 2;
+    const centerX = dimensions.width / 2;
     let centerY = dimensions.height / 2;
 
     switch (text.position) {
@@ -102,12 +98,6 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
         centerY = dimensions.height * 0.75;
         break;
     }
-
-    // Get the text to display (with typewriter effect if applicable)
-    const fullText = text.content;
-    const displayText = text.animationType === 'typewriter'
-      ? fullText.substring(0, Math.floor(progress * fullText.length))
-      : fullText;
 
     // Apply animation
     const animationStyle = getAnimationStyle(text, progress);
@@ -133,6 +123,30 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
       }
     }
     ctx.globalAlpha = animationStyle.opacity || 1;
+
+    // Handle code highlighting
+    if (text.isCode && text.language) {
+      renderHighlightedCode(ctx, text, progress, dimensions);
+    } else {
+      renderPlainText(ctx, text, progress, dimensions);
+    }
+
+    ctx.restore();
+  }, [config.backgroundColor]);
+
+  // Render plain text
+  const renderPlainText = (ctx: CanvasRenderingContext2D, text: TextItem, progress: number, dimensions: { width: number; height: number }) => {
+    // Set text properties
+    ctx.fillStyle = text.fontColor;
+    ctx.font = `${text.fontWeight} ${text.fontSize}px Arial`; // Use Arial as fallback
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Get the text to display (with typewriter effect if applicable)
+    const fullText = text.content;
+    const displayText = text.animationType === 'typewriter'
+      ? fullText.substring(0, Math.floor(progress * fullText.length))
+      : fullText;
 
     // Preserve newlines and word wrap the text
     const paragraphs = displayText.split('\n');
@@ -168,9 +182,97 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
       const y = startY + index * lineHeight;
       ctx.fillText(line, 0, y);
     });
+  };
 
-    ctx.restore();
-  }, [config.backgroundColor]);
+  // Render syntax highlighted code
+  const renderHighlightedCode = (ctx: CanvasRenderingContext2D, text: TextItem, progress: number, dimensions: { width: number; height: number }) => {
+    if (!text.language) return;
+
+    let tokens: HighlightedToken[];
+    if (text.highlightedTokens) {
+      tokens = text.highlightedTokens;
+    } else {
+      tokens = highlightCode(text.content, text.language);
+      // Cache the tokens (in a real app, we'd update the text item)
+      (text as any).highlightedTokens = tokens;
+    }
+
+    // Calculate total characters for typewriter effect
+    const totalChars = tokens.reduce((sum, token) => sum + token.text.length, 0);
+    const displayChars = text.animationType === 'typewriter'
+      ? Math.floor(progress * totalChars)
+      : totalChars;
+
+    // Build lines with word wrapping
+    const lines: Array<{ tokens: typeof tokens, startIndex: number, endIndex: number }> = [];
+    let currentLine: typeof tokens = [];
+    let currentWidth = 0;
+    let charIndex = 0;
+
+    ctx.font = `${text.fontWeight} ${text.fontSize}px monospace`;
+    const maxWidth = dimensions.width * 0.8;
+
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i];
+      const tokenText = token.text;
+      const tokenWidth = ctx.measureText(tokenText).width;
+
+      if (currentWidth + tokenWidth > maxWidth && currentLine.length > 0) {
+        // Start new line
+        lines.push({
+          tokens: currentLine,
+          startIndex: charIndex - currentLine.reduce((sum, t) => sum + t.text.length, 0),
+          endIndex: charIndex - 1
+        });
+        currentLine = [];
+        currentWidth = 0;
+      }
+
+      currentLine.push(token);
+      currentWidth += tokenWidth;
+      charIndex += tokenText.length;
+    }
+
+    if (currentLine.length > 0) {
+      lines.push({
+        tokens: currentLine,
+        startIndex: charIndex - currentLine.reduce((sum, t) => sum + t.text.length, 0),
+        endIndex: charIndex - 1
+      });
+    }
+
+    // Draw lines
+    const lineHeight = text.fontSize * 1.2;
+    const totalHeight = lines.length * lineHeight;
+    const startY = -totalHeight / 2 + lineHeight / 2;
+
+    lines.forEach((line, lineIndex) => {
+      let x = -currentWidth / 2; // Center the line
+      const y = startY + lineIndex * lineHeight;
+
+      for (const token of line.tokens) {
+        // Check if this token should be displayed in typewriter mode
+        if (text.animationType === 'typewriter' && line.endIndex > displayChars) {
+          if (line.startIndex >= displayChars) continue; // Skip entire token
+
+          // Partial token display
+          const remainingChars = displayChars - line.startIndex;
+          const partialText = token.text.substring(0, remainingChars);
+          if (partialText) {
+            ctx.fillStyle = token.color;
+            ctx.font = `${token.isBold ? 'bold' : text.fontWeight} ${text.fontSize}px monospace`;
+            ctx.fillText(partialText, x, y);
+          }
+          break; // Don't draw more tokens in this line
+        }
+
+        ctx.fillStyle = token.color;
+        ctx.font = `${token.isBold ? 'bold' : text.fontWeight} ${text.fontSize}px monospace`;
+        ctx.fillText(token.text, x, y);
+        x += ctx.measureText(token.text).width;
+      }
+    });
+  };
 
   // Animation style helper
   const getAnimationStyle = (text: TextItem, progress: number) => {
@@ -187,12 +289,13 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
           transform: `scale(${0.5 + progress * 0.5})`,
           opacity: progress
         };
-      case 'bounce':
+      case 'bounce': {
         const bounce = Math.sin(progress * Math.PI * 4) * (1 - progress) * 20;
         return {
           transform: `translateY(${bounce}px)`,
           opacity: progress
         };
+      }
       default:
         return { opacity: 1 };
     }
@@ -212,7 +315,7 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
       audioRef.current.play().catch(console.error);
     }
 
-    let startTime = Date.now();
+    const startTime = Date.now();
 
     const animate = () => {
       const canvas = canvasRef.current;

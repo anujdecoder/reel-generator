@@ -9,6 +9,8 @@ import {
   InputLabel,
   Slider,
   Stack,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import type { TextItem, AnimationType, TextPosition } from '../../types';
 import { editorStyles } from './styles';
@@ -52,6 +54,40 @@ export const TextEditor: React.FC<TextEditorProps> = ({
           value={text.content}
           onChange={(e) => handleChange('content', e.target.value)}
         />
+      </Box>
+
+      {/* Code Detection */}
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="body2" sx={{ mb: 1, fontWeight: 'bold' }}>Code Settings</Typography>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <FormControlLabel
+            control={
+              <Switch
+                checked={text.isCode || false}
+                onChange={(e) => handleChange('isCode', e.target.checked)}
+                size="small"
+              />
+            }
+            label="Syntax Highlight"
+          />
+          {text.isCode && (
+            <FormControl sx={{ minWidth: 120 }}>
+              <InputLabel>Language</InputLabel>
+              <Select
+                value={text.language || 'javascript'}
+                label="Language"
+                onChange={(e) => handleChange('language', e.target.value)}
+                size="small"
+              >
+                <MenuItem value="javascript">JavaScript</MenuItem>
+                <MenuItem value="typescript">TypeScript</MenuItem>
+                <MenuItem value="python">Python</MenuItem>
+                <MenuItem value="css">CSS</MenuItem>
+                <MenuItem value="json">JSON</MenuItem>
+              </Select>
+            </FormControl>
+          )}
+        </Stack>
       </Box>
 
       {/* Animation & Style Row */}
