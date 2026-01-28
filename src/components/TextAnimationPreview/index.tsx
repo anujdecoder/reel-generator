@@ -80,7 +80,7 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
   // Render text to canvas with word wrapping and syntax highlighting
   const renderTextToCanvas = useCallback((ctx: CanvasRenderingContext2D, text: TextItem, progress: number, dimensions: { width: number; height: number }) => {
     // Clear canvas with background color
-    ctx.fillStyle = config.backgroundColor || '#000000';
+    ctx.fillStyle = text.backgroundColor || config.backgroundColor || '#000000';
     ctx.fillRect(0, 0, dimensions.width, dimensions.height);
 
     // Position text
@@ -124,8 +124,10 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
     }
     ctx.globalAlpha = animationStyle.opacity || 1;
 
-    // Handle code highlighting
-    if (text.isCode && text.language) {
+    // Handle multi-column text or single column text
+    if (text.columns && text.columns.length > 0) {
+      renderMultiColumnText(ctx, text, progress, dimensions);
+    } else if (text.isCode && text.language) {
       renderHighlightedCode(ctx, text, progress, dimensions);
     } else {
       renderPlainText(ctx, text, progress, dimensions);
@@ -136,9 +138,11 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
 
   // Render plain text
   const renderPlainText = (ctx: CanvasRenderingContext2D, text: TextItem, progress: number, dimensions: { width: number; height: number }) => {
+    if (!text.content) return;
+
     // Set text properties
-    ctx.fillStyle = text.fontColor;
-    ctx.font = `${text.fontWeight} ${text.fontSize}px Arial`; // Use Arial as fallback
+    ctx.fillStyle = text.fontColor || '#ffffff';
+    ctx.font = `${text.fontWeight || 'bold'} ${text.fontSize || 48}px Arial`; // Use Arial as fallback
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
@@ -174,7 +178,8 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
     }
 
     // Draw each line
-    const lineHeight = text.fontSize * 1.2;
+    const fontSize = text.fontSize || 48;
+    const lineHeight = fontSize * 1.2;
     const totalHeight = lines.length * lineHeight;
     const startY = -totalHeight / 2 + lineHeight / 2;
 
@@ -184,9 +189,81 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
     });
   };
 
+  // Render multi-column text
+  const renderMultiColumnText = (ctx: CanvasRenderingContext2D, text: TextItem, progress: number, dimensions: { width: number; height: number }) => {
+    if (!text.columns) return;
+
+    const totalWidth = dimensions.width * 0.9; // Use 90% of available width
+    const startX = -totalWidth / 2;
+    let currentX = startX;
+
+    text.columns.forEach((column) => {
+      const columnWidth = totalWidth * (column.width / 100);
+      const columnDimensions = { width: columnWidth, height: dimensions.height };
+
+      // Render each paragraph in the column
+      let columnY = -dimensions.height / 2 + 50; // Start near top
+
+      column.paragraphs.forEach((paragraph) => {
+        // Temporarily modify text object for rendering
+        const tempText: TextItem = {
+          ...text,
+          content: paragraph.content,
+          fontSize: paragraph.fontSize,
+          fontColor: paragraph.fontColor,
+          fontWeight: paragraph.fontWeight,
+          textAlign: paragraph.textAlign,
+          position: paragraph.position,
+          isCode: paragraph.isCode,
+          language: paragraph.language,
+          highlightedTokens: paragraph.highlightedTokens,
+        };
+
+        // Save context
+        ctx.save();
+
+        // Position for this paragraph within the column
+        const paraCenterX = currentX + columnWidth / 2;
+        let paraCenterY = columnY;
+
+        switch (paragraph.position) {
+          case 'top':
+            paraCenterY = columnY;
+            break;
+          case 'center':
+            paraCenterY = columnY;
+            break;
+          case 'bottom':
+            paraCenterY = columnY;
+            break;
+        }
+
+        ctx.translate(paraCenterX, paraCenterY);
+
+        // Apply animation (simplified - could be enhanced per paragraph)
+        const animationStyle = getAnimationStyle(text, progress);
+        ctx.globalAlpha = animationStyle.opacity || 1;
+
+        // Render the paragraph
+        if (paragraph.isCode && paragraph.language) {
+          renderHighlightedCode(ctx, tempText, progress, columnDimensions);
+        } else {
+          renderPlainText(ctx, tempText, progress, columnDimensions);
+        }
+
+        ctx.restore();
+
+        // Move down for next paragraph
+        columnY += 100; // Fixed spacing - could be made configurable
+      });
+
+      currentX += columnWidth;
+    });
+  };
+
   // Render syntax highlighted code
   const renderHighlightedCode = (ctx: CanvasRenderingContext2D, text: TextItem, progress: number, dimensions: { width: number; height: number }) => {
-    if (!text.language) return;
+    if (!text.language || !text.content) return;
 
     let tokens: HighlightedToken[];
     if (text.highlightedTokens) {
@@ -219,14 +296,15 @@ export const TextAnimationPreview: React.FC<TextAnimationPreviewProps> = ({
       ? Math.floor(progress * totalChars)
       : totalChars;
 
-    ctx.font = `${text.fontWeight} ${text.fontSize}px monospace`;
+    const baseFontSize = text.fontSize || 48;
+    ctx.font = `${text.fontWeight || 'bold'} ${baseFontSize}px monospace`;
 
     // Calculate font size to ensure all text fits vertically
-    const lineHeight = text.fontSize * 1.2;
+    const lineHeight = baseFontSize * 1.2;
     const totalHeight = lines.length * lineHeight;
     const maxHeight = dimensions.height * 0.8;
 
-    let effectiveFontSize = text.fontSize;
+    let effectiveFontSize = baseFontSize;
     if (totalHeight > maxHeight) {
       effectiveFontSize = Math.max(12, (maxHeight / lines.length) / 1.2);
     }

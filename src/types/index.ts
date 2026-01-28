@@ -42,18 +42,45 @@ export interface HighlightedToken {
   isNewline?: boolean;
 }
 
-export interface TextItem {
+export interface TextParagraph {
   id: string;
   content: string;
-  animationType: AnimationType;
-  animationDuration: number; // How long the animation takes in ms
-  pauseDuration: number; // How long text stays visible after animation in ms
   fontSize: number;
   fontColor: string;
-  backgroundColor?: string; // Optional background
   fontWeight: 'normal' | 'bold';
   textAlign: 'left' | 'center' | 'right';
   position: TextPosition;
+  isCode?: boolean; // Whether this text is code that should be syntax highlighted
+  language?: string; // Programming language for syntax highlighting
+  highlightedTokens?: HighlightedToken[]; // Cached highlighted tokens for rendering
+}
+
+export interface TextColumn {
+  id: string;
+  paragraphs: TextParagraph[];
+  width: number; // percentage of total width (0-100)
+}
+
+export interface TextItem {
+  id: string;
+  // Single column mode (legacy)
+  content?: string;
+  // Multi-column mode
+  columns?: TextColumn[];
+
+  animationType: AnimationType;
+  animationDuration: number; // How long the animation takes in ms
+  pauseDuration: number; // How long text stays visible after animation in ms
+
+  // Global styling (used when columns is not set)
+  fontSize?: number;
+  fontColor?: string;
+  backgroundColor?: string; // Optional background
+  fontWeight?: 'normal' | 'bold';
+  textAlign?: 'left' | 'center' | 'right';
+  position?: TextPosition;
+
+  // Code settings (used when columns is not set)
   isCode?: boolean; // Whether this text is code that should be syntax highlighted
   language?: string; // Programming language for syntax highlighting
   highlightedTokens?: HighlightedToken[]; // Cached highlighted tokens for rendering
@@ -147,8 +174,28 @@ export interface TextAnimationConfigJSON {
   music?: ConfigMusicItem;
 }
 
-export interface ConfigTextItem {
+export interface ConfigTextParagraph {
   content: string;
+  fontSize?: number;
+  fontColor?: string;
+  fontWeight?: 'normal' | 'bold';
+  textAlign?: 'left' | 'center' | 'right';
+  position?: TextPosition;
+  isCode?: boolean;
+  language?: string;
+}
+
+export interface ConfigTextColumn {
+  paragraphs: ConfigTextParagraph[];
+  width?: number; // percentage of total width (0-100), defaults to equal distribution
+}
+
+export interface ConfigTextItem {
+  // Single column mode (legacy)
+  content?: string;
+  // Multi-column mode
+  columns?: ConfigTextColumn[];
+
   animationDuration?: number; // ms, uses global if not set
   pauseDuration?: number; // ms, uses global if not set
   animationType?: AnimationType;

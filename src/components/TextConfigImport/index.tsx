@@ -135,10 +135,36 @@ function parseConfig(jsonString: string): TextAnimationConfigJSON {
     throw new Error('Texts array cannot be empty');
   }
 
-  // Validate each text has content
+  // Validate each text has either content or columns
   for (let i = 0; i < parsed.texts.length; i++) {
-    if (!parsed.texts[i].content || typeof parsed.texts[i].content !== 'string') {
-      throw new Error(`Text at index ${i} must have a "content" string`);
+    const text = parsed.texts[i];
+    const hasContent = text.content && typeof text.content === 'string';
+    const hasColumns = text.columns && Array.isArray(text.columns) && text.columns.length > 0;
+
+    if (!hasContent && !hasColumns) {
+      throw new Error(`Text at index ${i} must have either a "content" string or a "columns" array`);
+    }
+
+    // If both are present, that's also invalid
+    if (hasContent && hasColumns) {
+      throw new Error(`Text at index ${i} cannot have both "content" and "columns" - choose one mode`);
+    }
+
+    // Validate columns structure if present
+    if (hasColumns) {
+      for (let j = 0; j < text.columns!.length; j++) {
+        const column = text.columns![j];
+        if (!column.paragraphs || !Array.isArray(column.paragraphs) || column.paragraphs.length === 0) {
+          throw new Error(`Text at index ${i}, column at index ${j} must have a non-empty "paragraphs" array`);
+        }
+
+        for (let k = 0; k < column.paragraphs.length; k++) {
+          const paragraph = column.paragraphs[k];
+          if (!paragraph.content || typeof paragraph.content !== 'string') {
+            throw new Error(`Text at index ${i}, column at index ${j}, paragraph at index ${k} must have a "content" string`);
+          }
+        }
+      }
     }
   }
 
@@ -148,23 +174,46 @@ function parseConfig(jsonString: string): TextAnimationConfigJSON {
 function createTextItem(textConfig: ConfigTextItem, index: number): TextItem {
   const textItem: TextItem = {
     id: `imported-${Date.now()}-${index}`,
-    content: textConfig.content,
     animationType: textConfig.animationType || 'typewriter',
     animationDuration: textConfig.animationDuration || 1000,
     pauseDuration: textConfig.pauseDuration || 2000,
-    fontSize: textConfig.fontSize || 48,
-    fontColor: textConfig.fontColor || '#ffffff',
-    backgroundColor: textConfig.backgroundColor,
-    fontWeight: textConfig.fontWeight || 'bold',
-    textAlign: textConfig.textAlign || 'center',
-    position: textConfig.position || 'center',
-    isCode: textConfig.isCode,
-    language: textConfig.language,
   };
 
-  // Cache highlighted tokens if this is code
-  if (textItem.isCode && textItem.language) {
-    textItem.highlightedTokens = highlightCode(textItem.content, textItem.language);
+  // Handle multi-column or single column
+  if (textConfig.columns && textConfig.columns.length > 0) {
+    textItem.columns = textConfig.columns.map(col => ({
+      id: `col-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      width: col.width || 50,
+      paragraphs: col.paragraphs.map(para => ({
+        id: `para-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        content: para.content,
+        fontSize: para.fontSize || 48,
+        fontColor: para.fontColor || '#ffffff',
+        fontWeight: para.fontWeight || 'bold',
+        textAlign: para.textAlign || 'center',
+        position: para.position || 'center',
+        isCode: para.isCode,
+        language: para.language,
+        highlightedTokens: para.isCode && para.language ?
+          highlightCode(para.content, para.language) : undefined,
+      })),
+    }));
+  } else {
+    // Single column mode
+    textItem.content = textConfig.content;
+    textItem.fontSize = textConfig.fontSize || 48;
+    textItem.fontColor = textConfig.fontColor || '#ffffff';
+    textItem.backgroundColor = textConfig.backgroundColor;
+    textItem.fontWeight = textConfig.fontWeight || 'bold';
+    textItem.textAlign = textConfig.textAlign || 'center';
+    textItem.position = textConfig.position || 'center';
+    textItem.isCode = textConfig.isCode;
+    textItem.language = textConfig.language;
+
+    // Cache highlighted tokens if this is code
+    if (textItem.isCode && textItem.language) {
+      textItem.highlightedTokens = highlightCode(textItem.content!, textItem.language);
+    }
   }
 
   return textItem;
@@ -410,6 +459,7 @@ export const TextConfigImport: React.FC<TextConfigImportProps> = ({ open, onClos
     "backgroundColor": "#000000"
   },
   "texts": [
+    // Single column mode
     {
       "content": "Hello\\nWorld!",    // Use \\n for line breaks
       "animationDuration": 1500,      // Optional: override global
@@ -422,6 +472,52 @@ export const TextConfigImport: React.FC<TextConfigImportProps> = ({ open, onClos
       "position": "center",           // top | center | bottom
       "isCode": false,                // Optional: enable syntax highlighting
       "language": "javascript"        // Optional: programming language
+    },
+    // Multi-column mode
+    {
+      "animationDuration": 2000,
+      "pauseDuration": 3000,
+      "animationType": "fadeIn",
+      "columns": [
+        {
+          "width": 50,                // percentage of total width
+          "paragraphs": [
+            {
+              "content": "function greet(name) {\\n  return \`Hello, \${name}!\`;\\n}",
+              "fontSize": 36,
+              "fontColor": "#ffffff",
+              "fontWeight": "normal",
+              "textAlign": "left",
+              "position": "top",
+              "isCode": true,
+              "language": "javascript"
+            },
+            {
+              "content": "Second paragraph in column 1",
+              "fontSize": 24,
+              "fontColor": "#ff0000",
+              "fontWeight": "bold",
+              "textAlign": "center",
+              "position": "center"
+            }
+          ]
+        },
+        {
+          "width": 50,
+          "paragraphs": [
+            {
+              "content": "{\\"name\\": \\"John\\",\\n \\"age\\": 30}",
+              "fontSize": 36,
+              "fontColor": "#00ff00",
+              "fontWeight": "normal",
+              "textAlign": "right",
+              "position": "top",
+              "isCode": true,
+              "language": "json"
+            }
+          ]
+        }
+      ]
     }
   ],
   "music": {                         // Optional

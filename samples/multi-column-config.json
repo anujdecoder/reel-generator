@@ -1,0 +1,87 @@
+{
+  "globalConfig": {
+    "animationDuration": 2000,
+    "pauseDuration": 3000,
+    "animationType": "fadeIn",
+    "videoDimensions": "1080x1920",
+    "videoQuality": "high",
+    "backgroundColor": "#1e1e1e"
+  },
+  "texts": [
+    {
+      "content": "Welcome to Multi-Column Text!",
+      "animationType": "typewriter",
+      "fontSize": 48,
+      "fontColor": "#ffffff",
+      "fontWeight": "bold",
+      "textAlign": "center",
+      "position": "center",
+      "animationDuration": 1500,
+      "pauseDuration": 2000
+    },
+    {
+      "animationDuration": 3000,
+      "pauseDuration": 4000,
+      "animationType": "fadeIn",
+      "columns": [
+        {
+          "width": 50,
+          "paragraphs": [
+            {
+              "content": "function fibonacci(n) {\n  if (n <= 1) return n;\n  return fibonacci(n - 1) +\n         fibonacci(n - 2);\n}\n\nconsole.log(fibonacci(10));",
+              "fontSize": 32,
+              "fontColor": "#ffffff",
+              "fontWeight": "normal",
+              "textAlign": "left",
+              "position": "top",
+              "isCode": true,
+              "language": "javascript"
+            },
+            {
+              "content": "This function calculates the nth Fibonacci number using recursion.",
+              "fontSize": 24,
+              "fontColor": "#cccccc",
+              "fontWeight": "normal",
+              "textAlign": "left",
+              "position": "center"
+            }
+          ]
+        },
+        {
+          "width": 50,
+          "paragraphs": [
+            {
+              "content": "{\n  \"name\": \"John Doe\",\n  \"age\": 30,\n  \"skills\": [\n    \"JavaScript\",\n    \"React\",\n    \"Node.js\"\n  ],\n  \"active\": true\n}",
+              "fontSize": 28,
+              "fontColor": "#ffffff",
+              "fontWeight": "normal",
+              "textAlign": "left",
+              "position": "top",
+              "isCode": true,
+              "language": "json"
+            },
+            {
+              "content": "Sample JSON data structure showing user information.",
+              "fontSize": 24,
+              "fontColor": "#cccccc",
+              "fontWeight": "normal",
+              "textAlign": "left",
+              "position": "center"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "content": "Each column can have multiple paragraphs with different styling!",
+      "animationType": "slideIn",
+      "fontSize": 36,
+      "fontColor": "#ff6b6b",
+      "fontWeight": "bold",
+      "textAlign": "center",
+      "position": "center",
+      "animationDuration": 2000,
+      "pauseDuration": 2500
+    }
+  ]
+}

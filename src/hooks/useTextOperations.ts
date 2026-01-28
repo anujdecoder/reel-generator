@@ -76,7 +76,7 @@ export const useTextOperations = ({
           const updated = { ...txt, ...updates };
 
           // Cache highlighted tokens if this is code
-          if (updated.isCode && updated.language && (updates.content || updates.language || updates.isCode !== txt.isCode)) {
+          if (updated.isCode && updated.language && updated.content && (updates.content || updates.language || updates.isCode !== txt.isCode)) {
             updated.highlightedTokens = highlightCode(updated.content, updated.language);
           } else if (!updated.isCode) {
             // Clear tokens if no longer code
@@ -94,7 +94,7 @@ export const useTextOperations = ({
         const updated = { ...prev, ...updates };
 
         // Cache highlighted tokens if this is code
-        if (updated.isCode && updated.language && (updates.content || updates.language || updates.isCode !== prev.isCode)) {
+        if (updated.isCode && updated.language && updated.content && (updates.content || updates.language || updates.isCode !== prev.isCode)) {
           updated.highlightedTokens = highlightCode(updated.content, updated.language);
         } else if (!updated.isCode) {
           // Clear tokens if no longer code
