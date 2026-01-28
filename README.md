@@ -8,6 +8,7 @@ A React + TypeScript application that allows users to create stunning video reel
 - **Image Management**: Reorder images by dragging or using arrow buttons, remove individual images
 - **Image Cropping**: Crop and resize images with preset aspect ratios (9:16, 1:1, 4:5, 16:9)
 - **Text Overlays**: Add customizable text to each image (position, font size, color, background)
+- **Text Animation**: Create animated videos from text with various animation effects (fade, slide, zoom, typewriter, bounce)
 - **Background Music**: Upload audio with trimming (start/end time) and volume control
 - **Real-time Preview**: Canvas-based preview that shows exactly what will be generated
 - **Multiple Video Dimensions**: Choose from various presets (1080×1920, 1080×1080, 1920×1080, etc.)
@@ -113,6 +114,14 @@ The CLI accepts the same JSON config format as the web interface. See the JSON S
    - Preview your reel with music
    - Configure settings (image duration, transition type, output format)
    - Download your video
+
+### Text Animation
+
+1. **Navigate to Text Animation**: Click "Text Animation" in the navigation
+2. **Add Text**: Click "Add Text" or enter text in the empty state
+3. **Edit Text**: Select a text in the sidebar to edit its content, animation type, font properties, and duration
+4. **Add Music**: Click "Add Music" to upload background audio
+5. **Preview & Generate**: Click "Preview & Generate" to preview the animation and generate video
 
 ### JSON Config Import
 

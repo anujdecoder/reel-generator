@@ -1,30 +1,35 @@
-import { useCallback, useRef } from 'react';
-import type { MusicTrack, ReelConfig } from '../types';
+import { useCallback, useRef, useEffect } from 'react';
+import type { MusicTrack } from '../types';
 
-interface UseMusicManagementProps {
-  setConfig: React.Dispatch<React.SetStateAction<ReelConfig>>;
+interface UseMusicManagementProps<T extends { music?: MusicTrack }> {
+  config: T;
+  setConfig: React.Dispatch<React.SetStateAction<T>>;
   setShowMusicUpload: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export const useMusicManagement = ({
+export const useMusicManagement = <T extends { music?: MusicTrack }>({
+  config,
   setConfig,
   setShowMusicUpload,
-}: UseMusicManagementProps) => {
+}: UseMusicManagementProps<T>) => {
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Set up audio when music changes in config
+  useEffect(() => {
+    if (audioRef.current && config.music) {
+      audioRef.current.src = config.music.dataUrl;
+      audioRef.current.volume = config.music.volume;
+      audioRef.current.load();
+    } else if (audioRef.current && !config.music) {
+      audioRef.current.src = '';
+      audioRef.current.pause();
+    }
+  }, [config.music]);
 
   const handleMusicChange = useCallback((music: MusicTrack | undefined) => {
     setConfig((prev) => ({ ...prev, music }));
     setShowMusicUpload(false);
-    // Update audio element source
-    if (audioRef.current) {
-      if (music) {
-        audioRef.current.src = music.dataUrl;
-        audioRef.current.volume = music.volume;
-      } else {
-        audioRef.current.src = '';
-        audioRef.current.pause();
-      }
-    }
+    // Audio will be set up by the useEffect above
   }, [setConfig, setShowMusicUpload]);
 
   return {

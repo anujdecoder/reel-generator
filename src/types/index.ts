@@ -34,6 +34,20 @@ export interface ImageItem {
   transitionType?: TransitionType; // Transition to next image
 }
 
+export interface TextItem {
+  id: string;
+  content: string;
+  animationType: AnimationType;
+  animationDuration: number; // How long the animation takes in ms
+  pauseDuration: number; // How long text stays visible after animation in ms
+  fontSize: number;
+  fontColor: string;
+  backgroundColor?: string; // Optional background
+  fontWeight: 'normal' | 'bold';
+  textAlign: 'left' | 'center' | 'right';
+  position: TextPosition;
+}
+
 export interface MusicTrack {
   id: string;
   name: string;
@@ -55,7 +69,20 @@ export interface ReelConfig {
   videoDimensions: VideoDimensions; // Output video dimensions
 }
 
+export interface TextAnimationConfig {
+  animationDuration: number; // How long animation takes in ms
+  pauseDuration: number; // How long text stays visible in ms
+  animationType: AnimationType; // Default animation
+  music?: MusicTrack;
+  outputFormat: VideoFormat;
+  videoQuality: VideoQuality;
+  useDirectEncoding: boolean;
+  videoDimensions: VideoDimensions;
+  backgroundColor?: string; // Background color for text video
+}
+
 export type TransitionType = 'fade' | 'slide' | 'zoom' | 'none';
+export type AnimationType = 'fadeIn' | 'slideIn' | 'zoomIn' | 'typewriter' | 'bounce' | 'none';
 export type VideoFormat = 'webm' | 'mp4';
 export type VideoQuality = 'standard' | 'high' | 'maximum';
 export type VideoDimensions = '1080x1920' | '1080x1080' | '1080x1350' | '1920x1080' | '720x1280' | '720x720';
@@ -94,6 +121,32 @@ export interface ReelConfigJSON {
   };
   images: ConfigImageItem[];
   music?: ConfigMusicItem;
+}
+
+export interface TextAnimationConfigJSON {
+  globalConfig?: {
+    animationDuration?: number; // ms - how long animation takes
+    pauseDuration?: number; // ms - how long text stays visible
+    animationType?: AnimationType;
+    videoDimensions?: VideoDimensions;
+    videoQuality?: VideoQuality;
+    backgroundColor?: string;
+  };
+  texts: ConfigTextItem[];
+  music?: ConfigMusicItem;
+}
+
+export interface ConfigTextItem {
+  content: string;
+  animationDuration?: number; // ms, uses global if not set
+  pauseDuration?: number; // ms, uses global if not set
+  animationType?: AnimationType;
+  fontSize?: number;
+  fontColor?: string;
+  backgroundColor?: string;
+  fontWeight?: 'normal' | 'bold';
+  textAlign?: 'left' | 'center' | 'right';
+  position?: TextPosition;
 }
 
 export const VIDEO_DIMENSION_PRESETS: Record<VideoDimensions, {

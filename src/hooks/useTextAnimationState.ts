@@ -1,22 +1,21 @@
 import { useState } from 'react';
 import { useLocalStorage } from './useLocalStorage';
-import type { ImageItem, ReelConfig } from '../types';
+import type { TextItem, TextAnimationConfig } from '../types';
 
-const DEFAULT_CONFIG: ReelConfig = {
-  transitionDuration: 500,
-  imageDuration: 2000,
-  transitionType: 'slide',
+const DEFAULT_TEXT_CONFIG: TextAnimationConfig = {
+  animationDuration: 1000,
+  pauseDuration: 2000,
+  animationType: 'typewriter',
   outputFormat: 'mp4',
   videoQuality: 'high',
   useDirectEncoding: true,
   videoDimensions: '1080x1920',
+  backgroundColor: '#000000',
 };
 
-
-
-export const useReelState = () => {
-  const [config, setConfig] = useLocalStorage<ReelConfig>('reel-config', DEFAULT_CONFIG);
-  const [selectedImage, setSelectedImage] = useState<ImageItem | null>(null);
+export const useTextAnimationState = () => {
+  const [config, setConfig] = useLocalStorage<TextAnimationConfig>('text-animation-config', DEFAULT_TEXT_CONFIG);
+  const [selectedText, setSelectedText] = useState<TextItem | null>(null);
   const [showMusicUpload, setShowMusicUpload] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showConfigImport, setShowConfigImport] = useState(false);
@@ -24,8 +23,8 @@ export const useReelState = () => {
   return {
     config,
     setConfig,
-    selectedImage,
-    setSelectedImage,
+    selectedText,
+    setSelectedText,
     showMusicUpload,
     setShowMusicUpload,
     showPreview,
